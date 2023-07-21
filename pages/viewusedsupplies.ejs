@@ -1,0 +1,16 @@
+<!-- viewusedsupplies.ejs -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>View Supplies Used</title>
+</head>
+<body>
+  <h1>Supplies Used for Event</h1>
+  <ul>
+    <% suppliesUsed.forEach(function(supplyUsed) { %>
+      <li><%= supplyUsed.supply_name %> - <%= supplyUsed.quantity_used %></li>
+    <% }); %>
+  </ul>
+</body>
+</html>
+

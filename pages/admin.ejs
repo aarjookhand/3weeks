@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+    }
+
+    Styles for the pop-up form
+    #addFormOverlay {
+      position: fixed;
+      z-index: 1;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    #addFormContainer {
+      background-color: white;
+      margin: 10% auto;
+      padding: 20px;
+      width: 50%;
+      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    #addFormContainer h2 {
+      margin-top: 0;
+    }
+
+    #addFormContainer label {
+      display: block;
+      margin-top: 10px;
+    }
+
+    #addFormContainer input[type="text"],
+    #addFormContainer input[type="file"],
+    #addFormContainer textarea {
+      width: 100%;
+      padding: 5px;
+      margin-top: 5px;
+    }
+
+    #addFormContainer button[type="submit"] {
+      margin-top: 10px;
+    }
+  </style>
+  <script>
+    function openAddForm() {
+      document.getElementById("addFormOverlay").style.display = "block";
+    }
+
+    function closeAddForm() {
+      document.getElementById("addFormOverlay").style.display = "none";
+    }
+
+    function backToLogin() {
+      window.location.href = "/login";
+    }    
+</script>
+
+</head>
+<body>
+  <h1>Supplies List</h1>
+  
+  <button onclick="openAddForm()">Add New Supply</button>
+  
+  <form method="GET" action="/search">
+    <input type="text" id="searchInput" name="searchInput" placeholder="Search here">
+    <button type="submit">Search</button>
+  </form>
+
+  
+<table id="supplyTable">
+  <tr>
+
+  <table id="supplyTable">
+
+  <table id="supplyTable">
+    <tr>
+      <th>Name</th>
+      <th>Image</th>
+      <th>Description</th>
+      <th>Category</th>
+      <th>Subcategory</th>
+      <th>Actions</th>
+    </tr>
+    <% supplies.forEach(function(supply) { %>
+      <tr>
+        <td><%= supply.name %></td>
+        <td><img src="/uploads/<%= supply.image %>" alt="Image" width="100"></td>
+        <td><%= supply.description %></td>
+        <td><%= supply.category %></td>
+        <td><%= supply.sub_category %></td>
+        <td>
+          <a href="/edit/<%= supply.id %>">Edit</a>
+          <a href="/delete/<%= supply.id %>" onclick="return confirm('Are you sure you want to delete this supply?')">Delete</a>
+        </td>
+      </tr>
+    <% }); %>
+    
+  </table>
+  <div id="addFormOverlay" style="display: none;">
+    <div id="addFormContainer">
+      <span onclick="closeAddForm()" style="float: right; cursor: pointer;">&times;</span>
+      <h2>Add New Supply</h2>
+      <form method="POST" action="/addSupply">
+
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name">
+      
+      <label for="image">Image:</label>
+      <input type="file" id="image" name="image" accept="image/*">    
+
+      <label for="description">Description:</label>
+      <textarea id="description" name="description"></textarea>
+
+      <label for="category">Category:</label>
+      <input type="catgeory" id="category" name="category">
+
+      <label for="sub_category">Subcategory:</label>
+      <input type="sub_catgeory" id="sub_category" name="sub_category">
+
+      <label for="country">Country:</label>
+      <input type="text" id="country" name="country">
+
+      <label for="region">Region:</label>
+      <input type="text" id="region" name="region">
+
+      <label for="city">City:</label>
+      <input type="text" id="city" name="city">
+
+      <label for="quantity">Quantity:</label>
+      <input type="number" id="quantity" name="quantity" >
+
+      <label for="rate">Rate:</label>
+      <input type="decimal" id="rate" name="rate" >
+
+      <button type="submit">Add Supply</button>
+
+    </form>  
+
+    
+      
+  </div>
+  </div>
+  <button onclick="backToLogin()">Back to Login Page</button>
+  
+</body>
+</html>

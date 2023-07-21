@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Edit Supply</title>
+  <style>
+     h1 {
+      color: #333;
+      font-size: 24px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 300px;
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background-color: #79ac7b;
+      color: #fff;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #354435;
+    }
+
+  </style>
+</head>
+
+<body>
+  <h1>Edit Supply</h1>
+  <form method="POST" action="/edit/<%= supply.id %>">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" value="<%= supply.name %>">
+
+    <label for="image">Image:</label>
+    <input type="file" id="image" name="image" accept="image/*">
+
+    <label for="description">Description:</label>
+    <textarea id="description" name="description"><%= supply.description %></textarea>
+
+    <label for="category">Category:</label>
+    <input type="text" id="category" name="category" value="<%= supply.category %>">
+
+    <label for="sub_category">Subcategory:</label>
+    <input type="text" id="sub_category" name="sub_category" value="<%= supply.sub_category %>">
+
+    <label for="country">Country:</label>
+    <input type="text" id="country" name="country" value="<%= supply.country %>">
+
+    <label for="region">Region:</label>
+    <input type="text" id="region" name="region" value="<%= supply.region %>">
+
+    <label for="city">City:</label>
+    <input type="text" id="city" name="city" value="<%= supply.city %>">
+
+    <label for="quantity">Quantity:</label>
+    <input type="number" id="quantity" name="quantity" value="<%= supply.quantity %>">
+
+    <label for="rate">Rate:</label>
+    <input type="number" id="rate" name="rate" step="0.01" value="<%= supply.rate %>">
+
+    <button type="submit">Update</button>
+  </form>
+</body>
+</html>

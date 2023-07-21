@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Event History</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Event History</h1>
+
+  <table>
+    <tr>
+      <th>Event Date</th>
+      <th>Start Time</th>
+      <th>End Time</th>
+      <th>Description</th>
+      <th>Status</th>
+      <th>Action</th> <!-- Add a new table header for the Action button -->
+    </tr>
+    <% events.forEach(function(event) { %>
+      <tr>
+        <td><%= event.event_date %></td>
+        <td><%= event.event_start_time %></td>
+        <td><%= event.event_end_time %></td>
+        <td><%= event.event_description %></td>
+        <td><%= getEventStatus(event) %></td>
+        <% if (getEventStatus(event) == "Completed") { %>
+          <!-- Render the "View" button if the event status is Completed -->
+          <td><a href="/viewusedsupplies/<%= event.id %>">View Supplies</a></td>
+        <% } else { %>
+          <!-- Render the "Add in supplies" button if the event status is not Completed -->
+          <td><a href="/addinsupplies/<%= event.id %>">Add Supplies</a></td>
+        <% } %>
+      </tr>
+    <% }); %>
+  </table>
+
+  <script>
+ function getEventStatus(event) {
+  const currentDate = new Date();
+  const eventDate = new Date(event.event_date);
+
+  if (currentDate.getDate() === eventDate.getDate() &&
+      currentDate.getMonth() === eventDate.getMonth() &&
+      currentDate.getFullYear() === eventDate.getFullYear()) {
+    return "Ongoing";
+  } else if (currentDate > eventDate) {
+    return "Completed";
+  } else {
+    return "Upcoming";
+  }
+}
+
+
+
+ 
+    // Replace the performAction function with your desired action logic
+    function performAction(eventId) {
+    // Redirect to the viewsupplies page with the eventId as a query parameter
+    window.location.href = `/viewsupplies?eventid=${eventId}`;
+  }
+  </script>
+</body>
+</html>

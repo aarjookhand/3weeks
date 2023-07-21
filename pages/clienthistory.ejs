@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Client History</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+    }
+
+    /* Styles for the pop-up form */
+    #addFormOverlay {
+      position: fixed;
+      z-index: 1;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    #addFormContainer {
+      background-color: white;
+      margin: 20% auto;
+      padding: 20px;
+      width: 50%;
+      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+  <script>
+    function openAddForm() {
+      document.getElementById("addFormOverlay").style.display = "block";
+    }
+
+    function closeAddForm() {
+      document.getElementById("addFormOverlay").style.display = "none";
+    }
+
+    
+  </script>
+</head>
+<body>
+  <h1>Client History</h1>
+
+  <h2>User Information</h2>
+  <table>
+    <tr>
+      <th>First Name</th>
+      <th>Last Name</th>
+      <th>Address</th>
+      <th>Email</th>
+      <th>Contact Number</th>
+    </tr>
+    <tr>
+      <td><%= user.firstname %></td>
+      <td><%= user.lastname %></td>
+      <td><%= user.address %></td>
+      <td><%= user.email %></td>
+      <td><%= user.contact_number %></td>
+    </tr>
+  </table>
+  
+  <h2>Options</h2>
+  <ul>
+    <li><a href="/client/history/<%= user.id %>/events">Event History</a></li>
+    <li><a href="javascript:void(0)" onclick="openAddForm()">Add New Event</a></li> <!-- Open the pop-up form on click -->
+  </ul>
+
+  <!-- Pop-up form for adding a new event -->
+  <div id="addFormOverlay" style="display: none;">
+    <div id="addFormContainer">
+      <span onclick="closeAddForm()" style="float: right; cursor: pointer;">&times;</span>
+      <h2>Add New Event</h2>
+      <form method="POST" action="/client/history/<%= user.id %>/add-event">
+        <label for="eventDate">Event Date:</label>
+        <input type="date" id="eventDate" name="eventDate">
+        <label for="startTime">Start Time:</label>
+        <input type="time" id="startTime" name="startTime">
+        <label for="endTime">End Time:</label>
+        <input type="time" id="endTime" name="endTime">
+        <label for="description">Description:</label>
+        <textarea id="description" name="description"></textarea>
+        <button type="submit">Add Event</button>
+      </form>
+      
+    </div>
+  </div>
+</body>
+</html>
