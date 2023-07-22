@@ -214,6 +214,7 @@ app.get('/search', (req, res) => {
 
 
 
+
 const multer = require('multer');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -400,6 +401,7 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
 });
 
 
+
 // Route to handle the second search bar (refine search)
 app.get('/addinsupplies/:eventId/refine', async (req, res) => {
   try {
@@ -455,7 +457,6 @@ async function getFilteredSupplies(searchTerm) {
   const supplies = await queryDatabase(suppliesQuery);
   return supplies;
 }
-
 
 
 // Function to query the database (using a connection pool)
@@ -518,7 +519,9 @@ app.get('/viewusedsupplies/:eventId', (req, res) => {
 
   // Fetch all supplies used for the specified event along with additional supply information
   const getSuppliesUsedQuery = `
-    SELECT s.*, es.quantity AS quantity_used
+    SELECT s.*, es.quantity AS quantity_used, 
+           (s.rate * es.quantity) AS total_rate,
+           (s.rate * es.quantity) + (s.rate * es.quantity * 0.05) AS total_cost
     FROM supply AS s
     INNER JOIN event_supplies AS es ON s.id = es.supply_id
     WHERE es.event_id = ?
