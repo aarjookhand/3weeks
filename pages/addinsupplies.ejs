@@ -36,7 +36,15 @@
       <input type="text" id="search" name="search" value="<%= searchTerm %>" placeholder="Search from place">
       <input type="submit" value="Search">
     </form>
-    
+
+    <!-- Second search bar for refining the filtered list -->
+    <form action="/addinsupplies/<%= event.id %>/refine" method="get">
+      <label for="refineSearch">Refine search:</label>
+      <input type="text" id="refineSearch" name="refineSearchTerm" value="<%= refineSearchTerm %>" placeholder="Refine search">
+      <!-- Include the 'search' query parameter from the first search bar -->
+      <input type="hidden" name="search" value="<%= searchTerm %>">
+      <input type="submit" value="Refine">
+    </form>
 
     
     <table>
