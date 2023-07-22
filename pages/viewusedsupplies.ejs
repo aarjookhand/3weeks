@@ -3,14 +3,56 @@
 <html>
 <head>
   <title>View Supplies Used</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    img {
+      max-height: 50px;
+      max-width: 50px;
+    }
+  </style>
 </head>
 <body>
   <h1>Supplies Used for Event</h1>
-  <ul>
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Image</th>
+      <th>Description</th>
+      <th>Category</th>
+      <th>Sub Category</th>
+      <th>Country</th>
+      <th>Region</th>
+      <th>City</th>
+      <th>Quantity Used</th>
+      <th>Total Rate</th>
+      <th>Total Cost</th>
+    </tr>
     <% suppliesUsed.forEach(function(supplyUsed) { %>
-      <li><%= supplyUsed.supply_name %> - <%= supplyUsed.quantity_used %></li>
+      <tr>
+        <td><%= supplyUsed.name %></td>
+        <td><img src="<%= supplyUsed.image_url %>" alt="<%= supplyUsed.name %>" height="50"></td>
+        <td><%= supplyUsed.description %></td>
+        <td><%= supplyUsed.category %></td>
+        <td><%= supplyUsed.sub_category %></td>
+        <td><%= supplyUsed.country %></td>
+        <td><%= supplyUsed.region %></td>
+        <td><%= supplyUsed.city %></td>
+        <td><%= supplyUsed.quantity_used %></td>
+        <td><%= supplyUsed.total_rate %></td>
+        <td><%= supplyUsed.total_cost %></td>
+      </tr>
     <% }); %>
-  </ul>
+  </table>
 </body>
 </html>
-
