@@ -361,7 +361,7 @@ app.get('/client/history/:clientId/events', (req, res) => {
 });
 
 
-// Route to render the addinsupplies.ejs page with supplies for a specific event
+// Route to render the addinsupplies.ejs page with supplies for a specific event and search term
 app.get('/addinsupplies/:eventId', async (req, res) => {
   try {
     const eventId = req.params.eventId;
@@ -392,7 +392,7 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
     const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
 
     // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
-    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies, searchTerm });
+    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies, searchTerm, refineSearchTerm: '' });
   } catch (err) {
     // Handle any errors that occur during the database query
     console.error('Error fetching data:', err);
@@ -402,6 +402,61 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
 
 
 
+// Route to handle the second search bar (refine search)
+app.get('/addinsupplies/:eventId/refine', async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { search, refineSearchTerm } = req.query;
+
+    // Fetch all supplies based on the filters applied from the first search bar
+    const supplies = await getFilteredSupplies(search);
+
+    // Filter the supplies further based on the refine search term (name, description, category, sub_category)
+    const refinedSupplies = supplies.filter(supply => {
+      return (
+        supply.name.toLowerCase().includes(refineSearchTerm.toLowerCase()) ||
+        supply.description.toLowerCase().includes(refineSearchTerm.toLowerCase()) ||
+        supply.category.toLowerCase().includes(refineSearchTerm.toLowerCase()) ||
+        supply.sub_category.toLowerCase().includes(refineSearchTerm.toLowerCase())
+      );
+    });
+
+    // Fetch event data from the database based on the event ID (replace 'events' with your actual table name)
+    const eventQuery = 'SELECT * FROM events WHERE id = ?';
+    const event = await queryDatabase(eventQuery, [eventId]);
+
+    // Fetch used supplies for the particular event from the database (replace 'event_supplies' with your actual table name)
+    const usedSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
+    const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
+
+    // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
+    res.render('addinsupplies.ejs', {
+      supplies: refinedSupplies, // Use the refinedSupplies list
+      event: event[0],
+      usedSupplies,
+      searchTerm: search, // Pass the search term from the first search bar
+      refineSearchTerm // Pass the refine search term
+    });
+  } catch (err) {
+    // Handle any errors that occur during the database query
+    console.error('Error fetching data:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Function to fetch supplies based on the filters applied from the first search bar
+async function getFilteredSupplies(searchTerm) {
+  // Fetch all supplies from the database that match the search term
+  const suppliesQuery = `
+    SELECT *
+    FROM supply
+    WHERE country LIKE '%${searchTerm}%'
+    OR region LIKE '%${searchTerm}%'
+    OR city LIKE '%${searchTerm}%'
+  `;
+  const supplies = await queryDatabase(suppliesQuery);
+  return supplies;
+}
 
 
 
@@ -516,4 +571,3 @@ Object.keys(require.cache).forEach((key) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
-
