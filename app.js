@@ -364,9 +364,16 @@ app.get('/client/history/:clientId/events', (req, res) => {
 app.get('/addinsupplies/:eventId', async (req, res) => {
   try {
     const eventId = req.params.eventId;
+    const searchTerm = req.query.search || ''; // Get the search term from the query parameters
 
-    // Fetch all supplies from the database (replace 'supplies' with your actual table name)
-    const suppliesQuery = 'SELECT * FROM supply';
+    // Fetch all supplies from the database that match the search term
+    const suppliesQuery = `
+      SELECT *
+      FROM supply
+      WHERE country LIKE '%${searchTerm}%'
+      OR region LIKE '%${searchTerm}%'
+      OR city LIKE '%${searchTerm}%'
+    `;
     const supplies = await queryDatabase(suppliesQuery);
 
     // Fetch event data from the database based on the event ID (replace 'events' with your actual table name)
@@ -378,40 +385,13 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
     const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
 
     // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
-    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies });
+    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies, searchTerm });
   } catch (err) {
     // Handle any errors that occur during the database query
     console.error('Error fetching data:', err);
     res.status(500).send('Internal Server Error');
   }
 });
-
-// Route to render the addinsupplies.ejs page with supplies for a specific event
-app.get('/addinsupplies/:eventId', async (req, res) => {
-  try {
-    const eventId = req.params.eventId;
-
-    // Fetch all supplies from the database
-    const suppliesQuery = 'SELECT * FROM supply';
-    const supplies = await queryDatabase(suppliesQuery);
-
-    // Fetch event data from the database based on the event ID 
-    const eventQuery = 'SELECT * FROM events WHERE id = ?';
-    const event = await queryDatabase(eventQuery, [eventId]);
-
-    // Fetch used supplies for the particular event from the database 
-    const usedSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
-    const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
-
-    // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
-    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies });
-  } catch (err) {
-    // Handle any errors that occur during the database query
-    console.error('Error fetching data:', err);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
 
 // Function to query the database (using a connection pool)
 function queryDatabase(query, values = []) {
