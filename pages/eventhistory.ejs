@@ -33,12 +33,16 @@
         <td><%= event.event_end_time %></td>
         <td><%= event.event_description %></td>
         <td><%= getEventStatus(event) %></td>
-        <% if (getEventStatus(event) == "Completed") { %>
+        <% if (getEventStatus(event) ) { %>
           <!-- Render the "View" button if the event status is Completed -->
-          <td><a href="/viewusedsupplies/<%= event.id %>">View Supplies</a></td>
-        <% } else { %>
+          <td><a href="/viewusedsupplies/<%= event.id %>">View Supplies</a><br>
+        <% }if (getEventStatus(event) !== "Completed") { %>
           <!-- Render the "Add in supplies" button if the event status is not Completed -->
-          <td><a href="/addinsupplies/<%= event.id %>">Add Supplies</a></td>
+          <a href="/addinsupplies/<%= event.id %>">Add Supplies</a>
+             </td>
+
+         
+          
         <% } %>
       </tr>
     <% }); %>
@@ -59,12 +63,8 @@
     return "Upcoming";
   }
 }
-
-
-
  
-    // Replace the performAction function with your desired action logic
-    function performAction(eventId) {
+     function performAction(eventId) {
     // Redirect to the viewsupplies page with the eventId as a query parameter
     window.location.href = `/viewsupplies?eventid=${eventId}`;
   }
