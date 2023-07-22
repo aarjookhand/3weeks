@@ -360,70 +360,72 @@ app.get('/client/history/:clientId/events', (req, res) => {
   });
 });
 
-// // Route for rendering the addinsupplies.ejs template
-app.get('/addinsupplies', (req, res) => {
-  const searchInput = req.query.searchInput || ''; // Get the search input from the query parameters
+// Route to render the addinsupplies.ejs page with supplies for a specific event
+app.get('/addinsupplies/:eventId', async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
 
-  // Query the supply table with the search criteria for country, region, or city
-  const query = 'SELECT * FROM supply WHERE country LIKE ? OR region LIKE ? OR city LIKE ?';
-  const searchPattern = `%${searchInput}%`;
-  connection.query(query, [searchPattern, searchPattern, searchPattern], (err, filteredSupplies) => {
-    if (err) {
-      console.error('Error searching supplies:', err);
-      res.status(500).send('Error searching supplies');
-    } else {
-      // Fetch all supplies available for selection
-      const getAllSuppliesQuery = 'SELECT * FROM supply';
-      connection.query(getAllSuppliesQuery, (err, allSupplies) => {
-        if (err) {
-          console.error('Error fetching all supplies:', err);
-          res.status(500).send('Error fetching all supplies');
-        } else {
-          // Pass the fetched data to the addinsupplies.ejs template
-          res.render('addinsupplies', {
-            filteredSupplies: filteredSupplies,
-            allSupplies: allSupplies,
-            suppliesUsed: [], // Set an empty array or remove it if not needed
-            searchInput: searchInput,
-          });
-        }
-      });
-    }
-  });
+    // Fetch all supplies from the database (replace 'supplies' with your actual table name)
+    const suppliesQuery = 'SELECT * FROM supply';
+    const supplies = await queryDatabase(suppliesQuery);
+
+    // Fetch event data from the database based on the event ID (replace 'events' with your actual table name)
+    const eventQuery = 'SELECT * FROM events WHERE id = ?';
+    const event = await queryDatabase(eventQuery, [eventId]);
+
+    // Fetch used supplies for the particular event from the database (replace 'event_supplies' with your actual table name)
+    const usedSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
+    const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
+
+    // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
+    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies });
+  } catch (err) {
+    // Handle any errors that occur during the database query
+    console.error('Error fetching data:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Route to render the addinsupplies.ejs page with supplies for a specific event
+app.get('/addinsupplies/:eventId', async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+
+    // Fetch all supplies from the database
+    const suppliesQuery = 'SELECT * FROM supply';
+    const supplies = await queryDatabase(suppliesQuery);
+
+    // Fetch event data from the database based on the event ID 
+    const eventQuery = 'SELECT * FROM events WHERE id = ?';
+    const event = await queryDatabase(eventQuery, [eventId]);
+
+    // Fetch used supplies for the particular event from the database 
+    const usedSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
+    const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
+
+    // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
+    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies });
+  } catch (err) {
+    // Handle any errors that occur during the database query
+    console.error('Error fetching data:', err);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 
-
-// Route for handling the addinsupplies.ejs template
-app.get('/addinsupplies/:eventId', (req, res) => {
-  const eventId = req.params.eventId;
-
-  // Fetch all supplies available for selection
-  const getAllSuppliesQuery = 'SELECT * FROM supply';
-  connection.query(getAllSuppliesQuery, (err, allSupplies) => {
-    if (err) {
-      console.error('Error fetching all supplies:', err);
-      res.status(500).send('Error fetching all supplies');
-    } else {
-      // Fetch supplies used for the specified event
-      const getSuppliesUsedQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
-      connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
-        if (err) {
-          console.error('Error fetching supplies used for the event:', err);
-          res.status(500).send('Error fetching supplies used for the event');
-        } else {
-          // Pass the fetched data to the addinsupplies.ejs template
-          res.render('addinsupplies', {
-            eventId: eventId,
-            allSupplies: allSupplies,
-            suppliesUsed: suppliesUsed,
-            searchInput: '', // Set an empty string for searchInput since it's not used in this context
-          });
-        }
-      });
-    }
+// Function to query the database (using a connection pool)
+function queryDatabase(query, values = []) {
+  return new Promise((resolve, reject) => {
+    connection.query(query, values, (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
   });
-});
+}
+
 
 
 // Route for rendering the viewusedsupplies.ejs template
