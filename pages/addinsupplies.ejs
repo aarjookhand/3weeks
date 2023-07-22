@@ -25,35 +25,19 @@
 </head>
 <body>
   <% if (event) { %>
-    <h1>Supplies and Used Items for Event <%= event.id %></h1>
-    <% if (event && event.usedSupplies && event.usedSupplies.length > 0) { %>
-      <h2>Used Supplies:</h2>
-    <table>
-      <tr>
-        <th>Name</th>
-        <th>Image</th>
-        <th>Description</th>
-        <th>Category</th>
-        <th>Sub Category</th>
-        <th>Country</th>
-        <th>Region</th>
-        <th>City</th>
-        <th>Quantity</th>
-        <th>Rate</th>
-    </tr>
-        <% events.event_supplies.forEach(usedSupply => { %>
-            <tr>
-                <!-- ... Table rows for used supplies ... -->
-            </tr>
-          </tr>
-          <% }); %>
-        </table>
-      <% } else { %>
-        <h2>No Used Supplies for this Event</h2>
-      <% } %>
+   
       
     <h1>All Supplies</h1>
     <% } %>
+
+    <!-- Add the search form -->
+    <form action="/addinsupplies/<%= event.id %>" method="get">
+      <label for="search">Search:</label>
+      <input type="text" id="search" name="search" value="<%= searchTerm %>" placeholder="Search from place">
+      <input type="submit" value="Search">
+    </form>
+    
+
     
     <table>
         <tr>
