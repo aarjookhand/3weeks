@@ -1,69 +1,87 @@
-<!-- addinsupplies.ejs -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Add Supplies</title>
-  <style>
-    table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-    th, td {
-      border: 1px solid black;
-      padding: 8px;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-  </style>
+    <title>Supplies List</title>
+    <style>
+        /* Add some basic styling for the table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        img {
+            max-width: 100px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Add Supplies</h1>
-
-  <!-- Display supplies used for the specified event -->
-  <h2>Supplies Used for Event</h2>
-  <ul>
-    <% suppliesUsed.forEach(function(supplyUsed) { %>
-      <li><%= supplyUsed.supply_name %> - <%= supplyUsed.quantity_used %></li>
-    <% }); %>
-  </ul>
-
-  <!-- Search form -->
-  <form action="/addinsupplies" method="GET">
-    <label for="searchInput">Search:</label>
-    <input type="text" id="searchInput" name="searchInput" value="<%= searchInput %>">
-    <button type="submit">Search</button>
-  </form>
-
-  <!-- Display all supplies available for selection -->
-  <h2>All Supplies</h2>
-  <table>
-    <tr>
-      <th>Name</th>
-      <th>Image</th>
-      <th>Description</th>
-      <th>Category</th>
-      <th>Sub Category</th>
-      <th>Country</th>
-      <th>Region</th>
-      <th>City</th>
-      <th>Quantity</th>
-      <th>Rate</th>
-    </tr>
-    <% filteredSupplies.forEach(function(supply) { %>
+  <% if (event) { %>
+    <h1>Supplies and Used Items for Event <%= event.id %></h1>
+    <% if (event && event.usedSupplies && event.usedSupplies.length > 0) { %>
+      <h2>Used Supplies:</h2>
+    <table>
       <tr>
-        <td><%= supply.name %></td>
-        <td><%= supply.image %></td>
-        <td><%= supply.description %></td>
-        <td><%= supply.category %></td>
-        <td><%= supply.sub_category %></td>
-        <td><%= supply.country %></td>
-        <td><%= supply.region %></td>
-        <td><%= supply.city %></td>
-        <td><%= supply.quantity %></td>
-        <td><%= supply.rate %></td>
-      </tr>
-    <% }); %>
-  </table>
+        <th>Name</th>
+        <th>Image</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Sub Category</th>
+        <th>Country</th>
+        <th>Region</th>
+        <th>City</th>
+        <th>Quantity</th>
+        <th>Rate</th>
+    </tr>
+        <% events.event_supplies.forEach(usedSupply => { %>
+            <tr>
+                <!-- ... Table rows for used supplies ... -->
+            </tr>
+          </tr>
+          <% }); %>
+        </table>
+      <% } else { %>
+        <h2>No Used Supplies for this Event</h2>
+      <% } %>
+      
+    <h1>All Supplies</h1>
+    <% } %>
+    
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Image</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Sub Category</th>
+            <th>Country</th>
+            <th>Region</th>
+            <th>City</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+        </tr>
+        <% supplies.forEach(supply => { %>
+            <tr>
+                <td><%= supply.name %></td>
+                <td><img src="<%= supply.image %>" alt="<%= supply.image %>"></td>
+                <td><%= supply.description %></td>
+                <td><%= supply.category %></td>
+                <td><%= supply.sub_category %></td>
+                <td><%= supply.country %></td>
+                <td><%= supply.region %></td>
+                <td><%= supply.city %></td>
+                <td><%= supply.quantity %></td>
+                <td><%= supply.rate %></td>
+            </tr>
+        <% }); %>
+    </table>
 </body>
 </html>
