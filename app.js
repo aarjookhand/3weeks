@@ -516,39 +516,6 @@ app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
 
 
 
-
-
-// // Route for rendering the viewusedsupplies.ejs template
-app.get('/viewusedsupplies/:eventId', (req, res) => {
-  const eventId = req.params.eventId;
-
-  // Fetch the event details for displaying on the page
-  const getEventQuery = 'SELECT * FROM events WHERE id = ?';
-  connection.query(getEventQuery, [eventId], (err, event) => {
-    if (err) {
-      console.error('Error fetching event details:', err);
-      res.status(500).send('Error fetching event details');
-    } else {
-      // Fetch all supplies used for the specified event
-      const getSuppliesUsedQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
-      connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
-        if (err) {
-          console.error('Error fetching supplies used:', err);
-          res.status(500).send('Error fetching supplies used');
-        } else {
-          res.render('viewusedsupplies', {
-            event: event[0],
-            suppliesUsed: suppliesUsed,
-          });
-        }
-      });
-    }
-  });
-});
-
-
-
-
 // // Route to view supplies used for a specific event
 app.get('/viewsupplies/:event_id', (req, res) => {
   const eventId = req.params.event_id;
@@ -616,4 +583,3 @@ Object.keys(require.cache).forEach((key) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
-
