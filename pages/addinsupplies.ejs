@@ -25,55 +25,67 @@
 </head>
 <body>
   <% if (event) { %>
-   
-      
     <h1>All Supplies</h1>
-    <% } %>
+  <% } %>
 
-    <!-- Add the search form -->
-    <form action="/addinsupplies/<%= event.id %>" method="get">
-      <label for="search">Search:</label>
-      <input type="text" id="search" name="search" value="<%= searchTerm %>" placeholder="Search from place">
-      <input type="submit" value="Search">
-    </form>
+  <!-- Add the search form -->
+  <form action="/addinsupplies/<%= event.id %>" method="get">
+    <label for="search">Search:</label>
+    <input type="text" id="search" name="search" value="<%= searchTerm %>" placeholder="Search from place">
+    <input type="submit" value="Search">
+  </form>
 
-    <!-- Second search bar for refining the filtered list -->
-    <form action="/addinsupplies/<%= event.id %>/refine" method="get">
-      <label for="refineSearch">Refine search:</label>
-      <input type="text" id="refineSearch" name="refineSearchTerm" value="<%= refineSearchTerm %>" placeholder="Refine search">
-      <!-- Include the 'search' query parameter from the first search bar -->
-      <input type="hidden" name="search" value="<%= searchTerm %>">
-      <input type="submit" value="Refine">
-    </form>
+  <!-- Second search bar for refining the filtered list -->
+  <form action="/addinsupplies/<%= event.id %>/refine" method="get">
+    <label for="refineSearch">Refine search:</label>
+    <input type="text" id="refineSearch" name="refineSearchTerm" value="<%= refineSearchTerm %>" placeholder="Refine search">
+    <!-- Include the 'search' query parameter from the first search bar -->
+    <input type="hidden" name="search" value="<%= searchTerm %>">
+    <input type="submit" value="Refine">
+  </form>
 
-    
+  <form action="/addinsupplies/<%= event.id %>/addSupplies" method="post">
     <table>
+      <tr>
+        <td>ID</td>
+        <th>Name</th>
+        <th>Image</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Sub Category</th>
+        <th>Country</th>
+        <th>Region</th>
+        <th>City</th>
+        <th>Quantity</th>
+        <th>Rate</th>
+        <th>Select Quantity</th>
+        <th>Select Supply</th>
+      </tr>
+      <% supplies.forEach(supply => { %>
         <tr>
-            <th>Name</th>
-            <th>Image</th>
-            <th>Description</th>
-            <th>Category</th>
-            <th>Sub Category</th>
-            <th>Country</th>
-            <th>Region</th>
-            <th>City</th>
-            <th>Quantity</th>
-            <th>Rate</th>
+          <td><%= supply.id %></td>
+          <td><%= supply.name %></td>
+          <td><img src="<%= supply.image %>" alt="<%= supply.image %>"></td>
+          <td><%= supply.description %></td>
+          <td><%= supply.category %></td>
+          <td><%= supply.sub_category %></td>
+          <td><%= supply.country %></td>
+          <td><%= supply.region %></td>
+          <td><%= supply.city %></td>
+          <td><%= supply.quantity %></td>
+          <td><%= supply.rate %></td>
+          
+          <td>
+            <input type="number" name="quantity<%= supply.id %>" value="0" min="0">
+          </td>
+          <td>
+            <input type="checkbox" name="selectedSupplies" value="<%= supply.id %>">
+          </td>
+          
         </tr>
-        <% supplies.forEach(supply => { %>
-            <tr>
-                <td><%= supply.name %></td>
-                <td><img src="<%= supply.image %>" alt="<%= supply.image %>"></td>
-                <td><%= supply.description %></td>
-                <td><%= supply.category %></td>
-                <td><%= supply.sub_category %></td>
-                <td><%= supply.country %></td>
-                <td><%= supply.region %></td>
-                <td><%= supply.city %></td>
-                <td><%= supply.quantity %></td>
-                <td><%= supply.rate %></td>
-            </tr>
-        <% }); %>
+      <% }); %>
     </table>
+    <input type="submit" value="Confirm Selection">
+  </form>
 </body>
 </html>
