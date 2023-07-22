@@ -360,6 +360,7 @@ app.get('/client/history/:clientId/events', (req, res) => {
   });
 });
 
+
 // Route to render the addinsupplies.ejs page with supplies for a specific event
 app.get('/addinsupplies/:eventId', async (req, res) => {
   try {
@@ -380,6 +381,12 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
     const eventQuery = 'SELECT * FROM events WHERE id = ?';
     const event = await queryDatabase(eventQuery, [eventId]);
 
+    if (!event || event.length === 0) {
+      // Handle the case when the event with the given ID is not found
+      res.status(404).send('Event not found');
+      return;
+    }
+
     // Fetch used supplies for the particular event from the database (replace 'event_supplies' with your actual table name)
     const usedSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
     const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
@@ -393,6 +400,11 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
   }
 });
 
+
+
+
+
+
 // Function to query the database (using a connection pool)
 function queryDatabase(query, values = []) {
   return new Promise((resolve, reject) => {
@@ -405,7 +417,6 @@ function queryDatabase(query, values = []) {
     });
   });
 }
-
 
 
 // Route for rendering the viewusedsupplies.ejs template
