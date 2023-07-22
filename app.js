@@ -214,8 +214,6 @@ app.get('/search', (req, res) => {
 
 
 
-
-
 const multer = require('multer');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -402,7 +400,6 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
 });
 
 
-
 // Route to handle the second search bar (refine search)
 app.get('/addinsupplies/:eventId/refine', async (req, res) => {
   try {
@@ -515,63 +512,29 @@ app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
 });
 
 
+// Route for rendering the viewusedsupplies.ejs template
+app.get('/viewusedsupplies/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
 
-// // Route to view supplies used for a specific event
-app.get('/viewsupplies/:event_id', (req, res) => {
-  const eventId = req.params.event_id;
-  const action = req.query.action;
+  // Fetch all supplies used for the specified event along with additional supply information
+  const getSuppliesUsedQuery = `
+    SELECT s.*, es.quantity AS quantity_used
+    FROM supply AS s
+    INNER JOIN event_supplies AS es ON s.id = es.supply_id
+    WHERE es.event_id = ?
+  `;
 
-  if (action === 'view') {
-    const getSuppliesQuery = 'SELECT * FROM event_supplies WHERE event_id = ?';
-    connection.query(getSuppliesQuery, [eventId], (err, supplies) => {
-      if (err) {
-        console.error('Error fetching supplies used:', err);
-        res.status(500).send('Error fetching supplies used');
-      } else {
-        // Fetch the event details for displaying on the page
-        const getEventQuery = 'SELECT * FROM events WHERE id = ?';
-        connection.query(getEventQuery, [eventId], (err, event) => {
-          if (err) {
-            console.error('Error fetching event details:', err);
-            res.status(500).send('Error fetching event details');
-          } else {
-            res.render('viewusedsupplies', {
-              event: event[0],
-              suppliesUsed: supplies,
-            });
-          }
-        });
-      }
-    });
-  } else if (action === 'add') {
-    // Fetch all supplies from the database for the dropdown selection
-    const getAllSuppliesQuery = 'SELECT * FROM supply';
-    connection.query(getAllSuppliesQuery, (err, allSupplies) => {
-      if (err) {
-        console.error('Error fetching all supplies:', err);
-        res.status(500).send('Error fetching all supplies');
-      } else {
-        // Fetch the event details for displaying on the page
-        const getEventQuery = 'SELECT * FROM events WHERE id = ?';
-        connection.query(getEventQuery, [eventId], (err, event) => {
-          if (err) {
-            console.error('Error fetching event details:', err);
-            res.status(500).send('Error fetching event details');
-          } else {
-            res.render('addinsupplies', {
-              event: event[0],
-              allSupplies: allSupplies,
-            });
-          }
-        });
-      }
-    });
-  } else {
-    // Invalid action parameter, handle the error or redirect to a default page
-    res.status(400).send('Invalid action parameter');
-  }
+  connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
+    if (err) {
+      console.error('Error fetching supplies used:', err);
+      res.status(500).send('Error fetching supplies used');
+    } else {
+      res.render('viewusedsupplies', {
+        suppliesUsed: suppliesUsed,
+      });
+    }
+  });
 });
-
 
 
 // Clear Node.js module cache
