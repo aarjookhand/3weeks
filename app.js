@@ -79,6 +79,7 @@ app.post('/login', (req, res) => {
   });
 });
 
+
 // Middleware to check if the user is logged in
 const checkAuth = (req, res, next) => {
   if (req.session.loggedInUser) {
@@ -473,8 +474,51 @@ function queryDatabase(query, values = []) {
   });
 }
 
+// Route to handle adding selected supplies to the event_supplies table
+app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
+  const eventId = req.params.eventId;
+  const selectedSupplies = req.body.selectedSupplies; // An array of selected supply IDs
 
-// Route for rendering the viewusedsupplies.ejs template
+  // Loop through the selected supply IDs and insert/update them in the event_supplies table along with their respective quantities
+  for (const supplyId of selectedSupplies) {
+    const quantityToAdd = req.body[`quantity${supplyId}`]; // Get the quantity for the current supply
+
+    try {
+      // Check if an entry already exists in the event_supplies table for the current event_id and supply_id
+      const checkQuery = 'SELECT * FROM event_supplies WHERE event_id = ? AND supply_id = ?';
+      const existingEntry = await queryDatabase(checkQuery, [eventId, supplyId]);
+
+      if (existingEntry.length > 0) {
+        // Entry already exists, retrieve the existing quantity
+        const existingQuantity = existingEntry[0].quantity;
+
+        // Calculate the new quantity by adding the existing quantity and the quantity to add
+        const newQuantity = existingQuantity + quantityToAdd;
+
+        // Update the existing entry with the new quantity
+        const updateQuery = 'UPDATE event_supplies SET quantity = ? WHERE event_id = ? AND supply_id = ?';
+        await queryDatabase(updateQuery, [newQuantity, eventId, supplyId]);
+      } else {
+        // Entry doesn't exist, insert a new row with the supply, quantity, and event_id
+        const insertQuery = 'INSERT INTO event_supplies (event_id, supply_id, quantity) VALUES (?, ?, ?)';
+        await queryDatabase(insertQuery, [eventId, supplyId, quantityToAdd]);
+      }
+    } catch (err) {
+      console.error('Error checking or updating supply in event_supplies:', err);
+      // You can handle errors here, such as sending an error message back to the client.
+      // For example: res.status(500).send('Error checking or updating supply in event_supplies');
+    }
+  }
+
+  // Redirect back to the addinsupplies page after successful addition/update
+  res.redirect(`/addinsupplies/${eventId}`);
+});
+
+
+
+
+
+// // Route for rendering the viewusedsupplies.ejs template
 app.get('/viewusedsupplies/:eventId', (req, res) => {
   const eventId = req.params.eventId;
 
@@ -504,7 +548,8 @@ app.get('/viewusedsupplies/:eventId', (req, res) => {
 
 
 
-// Route to view supplies used for a specific event
+
+// // Route to view supplies used for a specific event
 app.get('/viewsupplies/:event_id', (req, res) => {
   const eventId = req.params.event_id;
   const action = req.query.action;
@@ -571,3 +616,4 @@ Object.keys(require.cache).forEach((key) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
+
