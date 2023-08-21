@@ -3,55 +3,214 @@
 <head>
   <title>Admin</title>
   <style>
+body {
+  font-family: Times, Times New Roman, serif;
+  margin: 0;
+  padding: 0;
+ 
+  background-color: rgba(255, 255, 255, 0.1); /* Background color with 10% opacity */
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+
+    .image-section {
+      height: 40vh; /* Set the height to one-third of the viewport height */
+      background-image: url('images/img5.jpg');
+      background-size: cover;
+      background-position: center;
+    }
+
+    .h1-overlay {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #000000;
+      padding: 20px 0;
+      background-color: rgba(0, 0, 0, 0.27);
+      margin: 0;
+      font-family: "Brush Script MT", "Brush Script Std", cursive;
+      font-size:48px;
+      z-index: 1; /* Ensure the h1 overlays the image */
+    }
+  
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: rgb(255, 255, 255);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 5px;
+    }
+
+    table {
+    border-collapse: separate;
+    border-spacing: 5px; /* Add some spacing between cells */
+    width: 100%;
+    margin-top: 20px;
+    border: 2px solid black; /* Add visible borders to the table */
+  }
+
+  th, td {
+    border: 1px solid black; /* Add borders to table cells */
+    padding: 8px;
+    text-align: center;
+  }
+
+    button {
+      background-color: #ffffffa4;
+      color: #000000;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2e2e2e6f;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      color: #333;
+      margin-top: 10px;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    textarea,
+    input[type="number"],
+    input[type="decimal"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      margin-top: 5px;
+    }
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      margin-top: 5px;
+    }
+
     table {
       border-collapse: collapse;
       width: 100%;
+      margin-top: 20px;
     }
 
     th, td {
-      border: 1px solid black;
+      border: 1px solid rgb(106, 45, 10);
       padding: 8px;
+      text-align: center;
     }
 
-    Styles for the pop-up form
-    #addFormOverlay {
+    .addFormOverlay {
+      display: none;
       position: fixed;
-      z-index: 1;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(0, 0, 0, 0.871);
+      z-index: 1000;
+      overflow-y: scroll;
     }
 
-    #addFormContainer {
-      background-color: white;
-      margin: 10% auto;
-      padding: 20px;
-      width: 50%;
-      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+    .popup-form {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(255, 255, 255, 0.88);
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.712);
+      max-height: 70%; /* Limit the maximum height of the pop-up form */
+      overflow: auto; /* Add scrolling to the form content if it overflows */
+      color: rgb(0, 0, 0);
     }
 
-    #addFormContainer h2 {
-      margin-top: 0;
-    }
+    .search-form, table {
+    margin-bottom: 20px;
+  }
 
-    #addFormContainer label {
-      display: block;
-      margin-top: 10px;
-    }
+  .search-form label {
+    font-weight: bold;
+  }
 
-    #addFormContainer input[type="text"],
-    #addFormContainer input[type="file"],
-    #addFormContainer textarea {
-      width: 100%;
-      padding: 5px;
-      margin-top: 5px;
-    }
+  .search-form input[type="text"],
+  .search-form input[type="submit"],
+  .search-form input[type="number"] {
+    padding: 8px;
+    border: 1px solid #000000;
+    border-radius: 4px;
+    font-size: 14px;
+  }
 
-    #addFormContainer button[type="submit"] {
-      margin-top: 10px;
-    }
+  .search-form input[type="submit"] {
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .search-form input[type="submit"]:hover {
+    background-color: #0056b3;
+  }
+
+  /* Style the textarea to increase vertically */
+  .quantity-input {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 40px; /* Set a minimum height to avoid collapsing */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%; /* Take up full available width */
+  }
+
+  /* Style the checkboxes */
+  .supply-checkbox {
+    transform: scale(1.2); /* Increase checkbox size */
+    margin: 0;
+  }
+
+  /* Style the "Confirm Selection" button */
+  .submit-btn {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  .submit-btn:hover {
+    background-color: #0056b3;
+  }
+
+  .container {
+    font-family:  Times, Times New Roman, serif;  
+    margin: 20;
+    padding: 20; 
+      
+    
+    background-size: cover;
+    background-repeat: no-repeat;   
+    min-height: 100vh;
+ }
+
+
   </style>
   <script>
     function openAddForm() {
@@ -64,14 +223,52 @@
 
     function backToLogin() {
       window.location.href = "/login";
-    }    
+    }   
+
+        
+    document.addEventListener("DOMContentLoaded", function() {
+      const addSupplyBtn = document.getElementById("addSupplyBtn");
+
+      addSupplyBtn.addEventListener("click", function(event) {
+        // Prevent the default form submission behavior
+        event.preventDefault();
+
+        // Submit the form using AJAX
+        const supplyForm = document.getElementById("supplyForm");
+        const formData = new FormData(supplyForm);
+
+        // Use fetch or XMLHttpRequest to submit the form data
+        fetch("/addSupply", {
+          method: "POST",
+          body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Redirect to the editImages page with the supply id
+            window.location.href = "/editImages/" + data.supplyId;
+          } else {
+            // Handle error
+            console.error("Error adding supply:", data.error);
+          }
+        })
+        .catch(error => {
+          console.error("Error submitting form:", error);
+        });
+      });
+    });
+
+    
+
 </script>
 
 </head>
 <body>
-  <h1>Supplies List</h1>
+  <div class="container">
+  <div class="image-section"></div>
+  <h1 class="h1-overlay">Bienvenue à Fest'Event.</h1>
   
-  <button onclick="openAddForm()">Add New Supply</button>
+  <button onclick="openAddForm()">Enter New Supply</button>
   
   <form method="GET" action="/search">
     <input type="text" id="searchInput" name="searchInput" placeholder="Search here">
@@ -108,18 +305,16 @@
     <% }); %>
     
   </table>
-  <div id="addFormOverlay" style="display: none;">
-    <div id="addFormContainer">
+  <div id="addFormOverlay" class="addFormOverlay" style="display: none;">
+    <div class="popup-form">
       <span onclick="closeAddForm()" style="float: right; cursor: pointer;">&times;</span>
       <h2>Add New Supply</h2>
-      <form method="POST" action="/addSupply">
+      <form method="POST" action="/addSupply" id="supplyForm" >
+
 
       <label for="name">Name:</label>
       <input type="text" id="name" name="name">
-      
-      <label for="image">Image:</label>
-      <input type="file" id="image" name="image" accept="image/*">    
-
+   
       <label for="description">Description:</label>
       <textarea id="description" name="description"></textarea>
 
@@ -144,7 +339,8 @@
       <label for="rate">Rate:</label>
       <input type="decimal" id="rate" name="rate" >
 
-      <button type="submit">Add Supply</button>
+      
+      <button type="submit" >Add Supply</button>
 
     </form>  
 
@@ -153,6 +349,7 @@
   </div>
   </div>
   <button onclick="backToLogin()">Back to Login Page</button>
+</div>
   
 </body>
 </html>
