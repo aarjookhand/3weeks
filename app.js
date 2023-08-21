@@ -3,21 +3,15 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
-const port = 3000;
+const port = 1111;
 
-// Set up session middleware
-app.use(
-  session({
-    secret: 'your-secret-key',
-    resave: true,
-    saveUninitialized: true,
-  })
-);
 
 // Set up body-parser middleware
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 
 // Configure MySQL connection
 const connection = mysql.createConnection({
@@ -27,6 +21,26 @@ const connection = mysql.createConnection({
   database: 'projectdb',
 });
 
+
+// Configure session middleware
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true
+}));
+
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/uploads"); // Save uploaded files to the "uploads" directory
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname)); // Generate unique filenames
+  },
+});
+
+const upload = multer({ storage });
 // Connect to MySQL
 connection.connect((err) => {
   if (err) throw err;
@@ -38,13 +52,19 @@ connection.connect((err) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Set up static files middleware
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from the same directory as app.js
+app.use(express.static(__dirname));
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'pages')); // Set the views directory to 'pages'
+
+
+
+// Route to serve the index.html file
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Route for serving the login page
 app.get('/login', (req, res) => {
@@ -65,8 +85,18 @@ app.post('/login', (req, res) => {
       if (results.length > 0) {
         // Credentials are correct
         const user = results[0];
-        req.session.loggedInUser = user.role;
-        if (user.role === 'support') {
+        
+        // Store user information in the session
+        req.session.loggedInUser = {
+          id: user.id,
+          username: user.username,
+          role: user.role
+          // Add other user properties as needed
+        };
+        if (user.role === 'admin') {
+          res.redirect('/admin'); 
+
+        }else if (user.role === 'support') {
           res.redirect('/clients'); // Redirect to the registration page for support users
         } else {
           res.redirect('/home'); // Redirect to the home page for other users
@@ -123,15 +153,45 @@ app.get('/admin', (req, res) => {
   });
 });
 
+// // Route to render the upload images form
+// app.get('/uploadImages', (req, res) => {
+//   res.render('uploadImages'); // Replace with the actual path to your EJS file
+// });
+
+// // Route to handle image uploads
+// app.post('/uploadImages', upload.array('images', 5), (req, res) => {
+//   const images = req.files.map(file => file.filename);
+
+//   // Insert image paths into the database
+//   const sql = 'INSERT INTO images (image_path) VALUES ?';
+//   connection.query(sql, [images.map(image => [image])], (err, result) => {
+//     if (err) {
+//       console.error('Error uploading images:', err);
+//       res.status(500).send('Error uploading images');
+//     } else {
+//       res.redirect('/admin');
+//     }
+//   });
+// });
+
 
 // Route for handling the edit form submission
-app.post('/edit/:id', (req, res) => {
+app.post('/edit/:id', upload.single('image'), (req, res) => {
   const supplyId = req.params.id;
-  const { name, image, description, category, sub_category, country, region, city, quantity, rate } = req.body;
+  const { name, description, category, sub_category, country, region, city, quantity, rate } = req.body;
+
+  let imageBuffer = null;
+
+  // Check if an image was uploaded
+  if (req.file) {
+    imageBuffer = req.file.buffer;
+  }
 
   // Update the corresponding record in the supply table
-  const query = 'UPDATE supply SET name = ?, image = ?, description = ?, category = ?, sub_category = ?, country = ?, region = ?, city = ?, quantity = ?, rate = ? WHERE id = ?';
-  connection.query(query, [name, image, description, category, sub_category, country, region, city, quantity, rate, supplyId], (err, result) => {
+  const query = 'UPDATE supply SET name = ?, description = ?, category = ?, sub_category = ?, country = ?, region = ?, city = ?, quantity = ?, rate = ?, image = ? WHERE id = ?';
+  const queryParams = [name, description, category, sub_category, country, region, city, quantity, rate, imageBuffer, supplyId];
+
+  connection.query(query, queryParams, (err, result) => {
     if (err) {
       console.error('Error updating supply:', err);
       res.status(500).send('Error updating supply');
@@ -175,13 +235,128 @@ app.get('/delete/:id', (req, res) => {
   });
 });
 
+// Route to handle image uploads
+app.post("/uploadImage", upload.single("image"), (req, res) => {
+  const supplyId = req.body.supplyId; // The ID of the supply associated with the image
+  const imagePath = req.file.filename; // The filename generated by multer
+
+  // Save the imagePath in the database
+  const sql = "INSERT INTO supply_images (supply_id, image_path) VALUES (?, ?)";
+  connection.query(sql, [supplyId, imagePath], (err, result) => {
+    if (err) {
+      console.error("Error uploading image:", err);
+      res.status(500).send("Error uploading image");
+    } else {
+      res.redirect(`/editImages/${supplyId}`); // Redirect to the edit images page
+    }
+  });
+});
+
+// Route to render the edit images page
+app.get("/editImages/:id", (req, res) => {
+  const supplyId = req.params.id;
+
+  // Fetch the supply and its associated images from the database
+  const sql = "SELECT * FROM supply WHERE id = ?";
+  connection.query(sql, [supplyId], (err, supplyResult) => {
+    if (err) {
+      console.error("Error fetching supply:", err);
+      res.status(500).send("Error fetching supply");
+    } else {
+      const sqlImages = "SELECT * FROM supply_images WHERE supply_id = ?";
+      connection.query(sqlImages, [supplyId], (err, imagesResult) => {
+        if (err) {
+          console.error("Error fetching images:", err);
+          res.status(500).send("Error fetching images");
+        } else {
+          const supply = supplyResult[0];
+          const images = imagesResult;
+          res.render("/editImages", { supply, images });
+        }
+      });
+    }
+  });
+});
+
+
+// Route for editing images
+app.get("/editImages/:id", (req, res) => {
+  const supplyId = req.params.id;
+  const supply = fetchSupplyById(supplyId); 
+
+  if (!supply) {
+    return res.status(404).send("Supply not found"); // Handle the case where supply is not found
+  }
+
+
+  // Define a function to fetch supply information by ID
+function fetchSupplyById(supplyId, callback) {
+  const query = 'SELECT * FROM supply WHERE id = ?';
+  connection.query(query, [supplyId], (err, result) => {
+    if (err) {
+      console.error('Error fetching supply:', err);
+      callback(err, null);
+    } else {
+      const supply = result[0];
+      callback(null, supply);
+    }
+  });
+}
+});
+
+// Define a function to update supply image by ID
+function updateSupplyImage(supplyId, newImage, callback) {
+  const query = 'UPDATE supply SET image = ? WHERE id = ?';
+  connection.query(query, [newImage, supplyId], (err, result) => {
+    if (err) {
+      console.error('Error updating supply image:', err);
+      callback(err);
+    } else {
+      callback(null);
+    }
+  });
+}
+
+
+ 
+
+//    // Render the edit images form from the "pages" directory
+//    res.render("editImages", { supply }, { root: path.join(__dirname, "pages") });
+//   });
+
+// // Route for updating images
+// app.post("/updateImages/:id", upload.single("image"), (req, res) => {
+//   const supplyId = req.params.id;
+//   const newImage = req.file.filename;
+
+//   // Update the supply's image in the database
+//   // You should replace this with your own database logic
+//   updateSupplyImage(supplyId, newImage); // Implement this function
+
+//   res.redirect(`/editImages/${supplyId}`);
+// });
+
+// // Route for deleting an image
+// app.get("/deleteImage/:id/:image", (req, res) => {
+//   const supplyId = req.params.id;
+//   const imageName = req.params.image;
+
+//   // Delete the image from the database and server
+//   // You should replace this with your own logic
+//   deleteImage(supplyId, imageName); // Implement this function
+
+//   res.redirect(`/editImages/${supplyId}`);
+// });
+
+
+
 
 // Route for handling the addition of a new supply
 app.post('/addSupply', (req, res) => {
-  const { name, image, description, category, sub_category, country, region, city, quantity, rate } = req.body;
+  const { name,  description, category, sub_category, country, region, city, quantity, rate } = req.body;
 
-  const query = 'INSERT INTO supply (name, image, description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-  const values = [name, image, description, category, sub_category, country, region, city, quantity, rate];
+  const query = 'INSERT INTO supply (name,  description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?,  ?, ?, ?, ?, ?, ?, ?)';
+  const values = [name,  description, category, sub_category, country, region, city, quantity, rate];
 
   connection.query(query, values, (err, result) => {
     if (err) {
@@ -189,6 +364,7 @@ app.post('/addSupply', (req, res) => {
       res.status(500).send('Error adding supply');
     } else {
       res.redirect('/admin'); // Redirect back to the admin page after successful addition
+      
     }
   });
 });
@@ -215,35 +391,9 @@ app.get('/search', (req, res) => {
 
 
 
-const multer = require('multer');
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Specify the destination folder for uploaded files
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname); // Use the original filename for the uploaded file
-  }
-  });
-  const upload = multer({ storage: storage });
 
 
 
-
-// Route for handling the file upload
-app.post('/upload', upload.single('image'), (req, res) => {
-  // Access the uploaded file details through req.file
-  if (!req.file) {
-    // If no file was uploaded, handle the error
-    res.status(400).send('No file uploaded');
-    return;
-  }
-
-   // Process the uploaded file as needed
-   const filePath = req.file.path;
-
-   // Render the uploaded.ejs template with the image path
-   res.render('uploaded', { image: '/uploads/' + req.file.filename });
- });
 
 // Route for handling the client registration form submission
 app.post('/registerClient', (req, res) => {
@@ -303,6 +453,76 @@ app.get('/client/history/:clientId', (req, res) => {
       // Render the clienthistory.ejs file with the client details
       res.render('clienthistory', { user: results[0] }); // Pass the client details as "user"
     }
+  });
+});
+
+// Route for rendering the edit form
+app.get('/client/edit/:id', (req, res) => {
+  const clientId = req.params.id;
+
+  // Fetch the specific client item from the database
+  const query = 'SELECT * FROM clients WHERE id = ?';
+  connection.query(query, [clientId], (err, result) => {
+    if (err) {
+      console.error('Error fetching client:', err);
+      res.status(500).send('Error fetching client');
+    } else {
+      const client = result[0];
+      res.render('clientedit', { clientId, client }); // Use 'clientedit' here
+    }
+  });
+});
+
+
+// Route for handling the edit form submission for clients
+app.post('/client/update/:id', (req, res) => {
+  const clientId = req.params.id;
+  const { firstname, lastname, address, email, contact_number } = req.body;
+
+  // Construct the SQL query to update the client
+  let updateQuery = 'UPDATE clients SET';
+  const updateValues = [];
+
+  if (firstname) {
+    updateQuery += ' firstname = ?,';
+    updateValues.push(firstname);
+  }
+  if (lastname) {
+    updateQuery += ' lastname = ?,';
+    updateValues.push(lastname);
+  }
+  if (address) {
+    updateQuery += ' address = ?,';
+    updateValues.push(address);
+  }
+  if (email) {
+    updateQuery += ' email = ?,';
+    updateValues.push(email);
+  }
+  if (contact_number) {
+    updateQuery += ' contact_number = ?,';
+    updateValues.push(contact_number);
+  }
+
+  // Remove the trailing comma if any fields were updated
+  if (updateValues.length > 0) {
+    updateQuery = updateQuery.slice(0, -1);
+  }
+
+  updateQuery += ' WHERE id = ?';
+  updateValues.push(clientId);
+
+  // Execute the query
+  connection.query(updateQuery, updateValues, (error, results) => {
+    if (error) {
+      console.error('Error updating client:', error);
+      return res.status(500).send('An error occurred while updating the client.');
+    }
+
+    console.log('Client updated successfully:', results);
+
+    // Redirect to the client list or display a success message
+    res.redirect('/clients'); // Change this URL to your client list page
   });
 });
 
@@ -479,7 +699,7 @@ app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
 
   // Loop through the selected supply IDs and insert/update them in the event_supplies table along with their respective quantities
   for (const supplyId of selectedSupplies) {
-    const quantityToAdd = req.body[`quantity${supplyId}`]; // Get the quantity for the current supply
+    const quantityToAdd = parseInt(req.body[`quantity${supplyId}`]); // Convert to integer
 
     try {
       // Check if an entry already exists in the event_supplies table for the current event_id and supply_id
@@ -503,8 +723,7 @@ app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
       }
     } catch (err) {
       console.error('Error checking or updating supply in event_supplies:', err);
-      // You can handle errors here, such as sending an error message back to the client.
-      // For example: res.status(500).send('Error checking or updating supply in event_supplies');
+      // Handle errors appropriately
     }
   }
 
@@ -538,7 +757,6 @@ app.get('/viewusedsupplies/:eventId', (req, res) => {
     }
   });
 });
-
 
 // Clear Node.js module cache
 Object.keys(require.cache).forEach((key) => {
