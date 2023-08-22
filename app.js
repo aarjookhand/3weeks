@@ -2,15 +2,18 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
+const multer = require('multer');
 const path = require('path');
-// const multer = require('multer');
+
+
 
 const app = express();
 const port = 1111;
 
 
-// Set up body-parser middleware
-app.use(bodyParser.urlencoded({ extended: false }));
+
+// // Set up body-parser middleware
+// app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.urlencoded({ extended: true }));
 
 // Configure MySQL connection
@@ -28,24 +31,6 @@ app.use(session({
   resave: false,
   saveUninitialized: true
 }));
-
-// // Multer configuration for file uploads
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "public/uploads"); // Save uploaded files to the "uploads" directory
-//   },
-//   filename: (req, file, cb) => {
-//     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-//     cb(null, uniqueSuffix + path.extname(file.originalname)); // Generate unique filenames
-//   },
-// });
-
-// const upload = multer({ storage });
-// // Connect to MySQL
-// connection.connect((err) => {
-//   if (err) throw err;
-//   console.log('Connected to MySQL server');
-// });
 
 
 // Set up the Express middleware to parse request bodies
@@ -110,6 +95,7 @@ app.post('/login', (req, res) => {
 });
 
 
+
 // Middleware to check if the user is logged in
 const checkAuth = (req, res, next) => {
   if (req.session.loggedInUser) {
@@ -140,36 +126,117 @@ app.get('/home', checkAuth, (req, res) => {
 });
 
 
-// Route to render the admin.ejs template
+
+
 app.get('/admin', (req, res) => {
+ 
   // Query the supply table
   connection.query('SELECT * FROM supply', (err, rows) => {
     if (err) {
       console.error('Error querying supply table: ', err);
       return;
     }
-    // Render the admin.ejs template with the supply data
-    res.render('admin', { supplies: rows });
+    // Render the admin.ejs template with the supply data and supplyId
+    const supplyId = req.params.supplyId; // Extract supplyId from the request parameters
+    res.render('admin', { supplies: rows, currentSupplyId: supplyId });
+    
   });
 });
 
-// Route for handling the addition of a new supply
-app.post('/addSupply', (req, res) => {
-  const { name,  description, category, sub_category, country, region, city, quantity, rate } = req.body;
 
-  const query = 'INSERT INTO supply (name,  description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?,  ?, ?, ?, ?, ?, ?, ?)';
-  const values = [name,  description, category, sub_category, country, region, city, quantity, rate];
+
+
+app.post('/addSupply', (req, res) => {
+  console.log('Form data received:', req.body); 
+  const { name, description, category, sub_category, country, region, city, quantity, rate } = req.body;
+
+  // Perform validation here
+  if (!name || !description || !category || !sub_category || !country || !region || !city || !quantity || !rate) {
+    return res.status(400).send('All fields are required.');
+  }
+
+  // Proceed with the database insertion
+  const query = 'INSERT INTO supply (name, description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+  const values = [name, description, category, sub_category, country, region, city, quantity, rate];
 
   connection.query(query, values, (err, result) => {
     if (err) {
       console.error('Error adding supply:', err);
       res.status(500).send('Error adding supply');
     } else {
-      res.redirect('/admin'); // Redirect back to the admin page after successful addition
+      // Get the ID of the newly added supply
+      
+      const supplyId = result.insertId;
+     
+      res.redirect('/uploadImages/:${supplyId}'); 
       
     }
   });
 });
+
+
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Route to render the image upload form
+app.get('/uploadImages/:supplyId', (req, res) => { // Fix the parameter name here
+  const supplyId = req.params.supplyId;
+  res.render('image', { supplyId });
+});
+
+
+
+
+
+app.post('/uploadImages/:supplyId', upload.single('image'), (req, res) => {
+  const supplyId = req.params.supplyId; // Retrieve supplyId from request parameter
+  // Retrieve the image buffer from the req.file object
+  const imageBuffer = req.file.buffer;
+
+  console.log('supplyId:', supplyId); 
+
+  // Perform any necessary image processing or validation here
+
+  // Proceed with the database insertion
+  const query = 'INSERT INTO supply_images (supply_id, image_data) VALUES (?, ?)';
+  const values = [supplyId, imageBuffer];
+
+  connection.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Error adding image:', err);
+      res.status(500).send('Error adding image');
+    } else {
+      console.log('Image uploaded');
+      res.redirect('/admin'); // Redirect back to the admin page after successful image upload
+    }
+  });
+});
+
+
+
+
+app.get('/images/:supplyId', (req, res) => {
+  const supplyId = req.params.supplyId;
+
+  // Query the supply_images table to retrieve images associated with the supply
+  const query = 'SELECT * FROM supply_images WHERE supply_id = ?';
+  connection.query(query, [supplyId], (err, rows) => {
+    if (err) {
+      console.error('Error querying images:', err);
+      res.status(500).send('Error querying images');
+    } else {
+      const images = rows; // Assign the retrieved rows to the 'images' variable
+      
+      console.log('Fetched images:', images);
+      
+      res.render('image', { images, supplyId });
+    }
+  });
+});
+
+
 
 
 // Route for handling the edit form submission
@@ -186,7 +253,8 @@ app.post('/edit/:id',  (req, res) => {
       console.error('Error updating supply:', err);
       res.status(500).send('Error updating supply');
     } else {
-      res.redirect('/admin'); // Redirect back to the admin page after successful update
+       // Redirect to the image upload form for the newly added supply
+       res.redirect(`/uploadImages/${supplyId}`);
     }
   });
 });
@@ -207,6 +275,8 @@ app.get('/edit/:id', (req, res) => {
     }
   });
 });
+
+
 
 
 // Route for handling the delete request
