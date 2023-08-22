@@ -3,7 +3,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const path = require('path');
-const multer = require('multer');
+// const multer = require('multer');
 
 const app = express();
 const port = 1111;
@@ -29,23 +29,23 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/uploads"); // Save uploaded files to the "uploads" directory
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname)); // Generate unique filenames
-  },
-});
+// // Multer configuration for file uploads
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "public/uploads"); // Save uploaded files to the "uploads" directory
+//   },
+//   filename: (req, file, cb) => {
+//     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+//     cb(null, uniqueSuffix + path.extname(file.originalname)); // Generate unique filenames
+//   },
+// });
 
-const upload = multer({ storage });
-// Connect to MySQL
-connection.connect((err) => {
-  if (err) throw err;
-  console.log('Connected to MySQL server');
-});
+// const upload = multer({ storage });
+// // Connect to MySQL
+// connection.connect((err) => {
+//   if (err) throw err;
+//   console.log('Connected to MySQL server');
+// });
 
 
 // Set up the Express middleware to parse request bodies
@@ -57,7 +57,7 @@ app.use(express.static(__dirname));
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'pages')); // Set the views directory to 'pages'
+app.set('views', path.join(__dirname, 'pages')); 
 
 
 
@@ -153,43 +153,33 @@ app.get('/admin', (req, res) => {
   });
 });
 
-// // Route to render the upload images form
-// app.get('/uploadImages', (req, res) => {
-//   res.render('uploadImages'); // Replace with the actual path to your EJS file
-// });
+// Route for handling the addition of a new supply
+app.post('/addSupply', (req, res) => {
+  const { name,  description, category, sub_category, country, region, city, quantity, rate } = req.body;
 
-// // Route to handle image uploads
-// app.post('/uploadImages', upload.array('images', 5), (req, res) => {
-//   const images = req.files.map(file => file.filename);
+  const query = 'INSERT INTO supply (name,  description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?,  ?, ?, ?, ?, ?, ?, ?)';
+  const values = [name,  description, category, sub_category, country, region, city, quantity, rate];
 
-//   // Insert image paths into the database
-//   const sql = 'INSERT INTO images (image_path) VALUES ?';
-//   connection.query(sql, [images.map(image => [image])], (err, result) => {
-//     if (err) {
-//       console.error('Error uploading images:', err);
-//       res.status(500).send('Error uploading images');
-//     } else {
-//       res.redirect('/admin');
-//     }
-//   });
-// });
+  connection.query(query, values, (err, result) => {
+    if (err) {
+      console.error('Error adding supply:', err);
+      res.status(500).send('Error adding supply');
+    } else {
+      res.redirect('/admin'); // Redirect back to the admin page after successful addition
+      
+    }
+  });
+});
 
 
 // Route for handling the edit form submission
-app.post('/edit/:id', upload.single('image'), (req, res) => {
+app.post('/edit/:id',  (req, res) => {
   const supplyId = req.params.id;
   const { name, description, category, sub_category, country, region, city, quantity, rate } = req.body;
 
-  let imageBuffer = null;
-
-  // Check if an image was uploaded
-  if (req.file) {
-    imageBuffer = req.file.buffer;
-  }
-
   // Update the corresponding record in the supply table
-  const query = 'UPDATE supply SET name = ?, description = ?, category = ?, sub_category = ?, country = ?, region = ?, city = ?, quantity = ?, rate = ?, image = ? WHERE id = ?';
-  const queryParams = [name, description, category, sub_category, country, region, city, quantity, rate, imageBuffer, supplyId];
+  const query = 'UPDATE supply SET name = ?, description = ?, category = ?, sub_category = ?, country = ?, region = ?, city = ?, quantity = ?, rate = ?  WHERE id = ?';
+  const queryParams = [name, description, category, sub_category, country, region, city, quantity, rate, supplyId];
 
   connection.query(query, queryParams, (err, result) => {
     if (err) {
@@ -213,7 +203,7 @@ app.get('/edit/:id', (req, res) => {
       res.status(500).send('Error fetching supply');
     } else {
       const supply = result[0];
-      res.render('adminedit', { supply }); // Render the adminedit.ejs template with the supply data
+      res.render('adminedit', { supply }); 
     }
   });
 });
@@ -231,140 +221,6 @@ app.get('/delete/:id', (req, res) => {
       res.status(500).send('Error deleting supply');
     } else {
       res.redirect('/admin'); // Redirect back to the admin page after successful deletion
-    }
-  });
-});
-
-// Route to handle image uploads
-app.post("/uploadImage", upload.single("image"), (req, res) => {
-  const supplyId = req.body.supplyId; // The ID of the supply associated with the image
-  const imagePath = req.file.filename; // The filename generated by multer
-
-  // Save the imagePath in the database
-  const sql = "INSERT INTO supply_images (supply_id, image_path) VALUES (?, ?)";
-  connection.query(sql, [supplyId, imagePath], (err, result) => {
-    if (err) {
-      console.error("Error uploading image:", err);
-      res.status(500).send("Error uploading image");
-    } else {
-      res.redirect(`/editImages/${supplyId}`); // Redirect to the edit images page
-    }
-  });
-});
-
-// Route to render the edit images page
-app.get("/editImages/:id", (req, res) => {
-  const supplyId = req.params.id;
-
-  // Fetch the supply and its associated images from the database
-  const sql = "SELECT * FROM supply WHERE id = ?";
-  connection.query(sql, [supplyId], (err, supplyResult) => {
-    if (err) {
-      console.error("Error fetching supply:", err);
-      res.status(500).send("Error fetching supply");
-    } else {
-      const sqlImages = "SELECT * FROM supply_images WHERE supply_id = ?";
-      connection.query(sqlImages, [supplyId], (err, imagesResult) => {
-        if (err) {
-          console.error("Error fetching images:", err);
-          res.status(500).send("Error fetching images");
-        } else {
-          const supply = supplyResult[0];
-          const images = imagesResult;
-          res.render("/editImages", { supply, images });
-        }
-      });
-    }
-  });
-});
-
-
-// Route for editing images
-app.get("/editImages/:id", (req, res) => {
-  const supplyId = req.params.id;
-  const supply = fetchSupplyById(supplyId); 
-
-  if (!supply) {
-    return res.status(404).send("Supply not found"); // Handle the case where supply is not found
-  }
-
-
-  // Define a function to fetch supply information by ID
-function fetchSupplyById(supplyId, callback) {
-  const query = 'SELECT * FROM supply WHERE id = ?';
-  connection.query(query, [supplyId], (err, result) => {
-    if (err) {
-      console.error('Error fetching supply:', err);
-      callback(err, null);
-    } else {
-      const supply = result[0];
-      callback(null, supply);
-    }
-  });
-}
-});
-
-// Define a function to update supply image by ID
-function updateSupplyImage(supplyId, newImage, callback) {
-  const query = 'UPDATE supply SET image = ? WHERE id = ?';
-  connection.query(query, [newImage, supplyId], (err, result) => {
-    if (err) {
-      console.error('Error updating supply image:', err);
-      callback(err);
-    } else {
-      callback(null);
-    }
-  });
-}
-
-
- 
-
-//    // Render the edit images form from the "pages" directory
-//    res.render("editImages", { supply }, { root: path.join(__dirname, "pages") });
-//   });
-
-// // Route for updating images
-// app.post("/updateImages/:id", upload.single("image"), (req, res) => {
-//   const supplyId = req.params.id;
-//   const newImage = req.file.filename;
-
-//   // Update the supply's image in the database
-//   // You should replace this with your own database logic
-//   updateSupplyImage(supplyId, newImage); // Implement this function
-
-//   res.redirect(`/editImages/${supplyId}`);
-// });
-
-// // Route for deleting an image
-// app.get("/deleteImage/:id/:image", (req, res) => {
-//   const supplyId = req.params.id;
-//   const imageName = req.params.image;
-
-//   // Delete the image from the database and server
-//   // You should replace this with your own logic
-//   deleteImage(supplyId, imageName); // Implement this function
-
-//   res.redirect(`/editImages/${supplyId}`);
-// });
-
-
-
-
-// Route for handling the addition of a new supply
-app.post('/addSupply', (req, res) => {
-  const { name,  description, category, sub_category, country, region, city, quantity, rate } = req.body;
-
-  const query = 'INSERT INTO supply (name,  description, category, sub_category, country, region, city, quantity, rate) VALUES (?, ?,  ?, ?, ?, ?, ?, ?, ?)';
-  const values = [name,  description, category, sub_category, country, region, city, quantity, rate];
-
-  connection.query(query, values, (err, result) => {
-    if (err) {
-      console.error('Error adding supply:', err);
-      res.status(500).send('Error adding supply');
-    } else {
-      res.redirect('/admin'); // Redirect back to the admin page after successful addition
-      
     }
   });
 });
@@ -387,11 +243,6 @@ app.get('/search', (req, res) => {
     }
   });
 });
-
-
-
-
-
 
 
 
@@ -522,7 +373,7 @@ app.post('/client/update/:id', (req, res) => {
     console.log('Client updated successfully:', results);
 
     // Redirect to the client list or display a success message
-    res.redirect('/clients'); // Change this URL to your client list page
+    res.redirect('/clients');
   });
 });
 
