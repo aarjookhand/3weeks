@@ -168,7 +168,8 @@ app.post('/addSupply', (req, res) => {
       
       const supplyId = result.insertId;
      
-      res.redirect('/uploadImages/:${supplyId}'); 
+      res.redirect(`/uploadImages/${supplyId}`);
+
       
     }
   });
