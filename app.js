@@ -2,18 +2,16 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
-const multer = require('multer');
 const path = require('path');
-
-
+const multer = require('multer');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const port = 1111;
 
 
-
-// // Set up body-parser middleware
-// app.use(bodyParser.urlencoded({ extended: false }));
+// Set up body-parser middleware
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.urlencoded({ extended: true }));
 
 // Configure MySQL connection
@@ -56,6 +54,18 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'pages', 'login.html'));
 });
 
+const nodemailer = require('nodemailer'); // Import nodemailer for sending emails
+
+// Define the generateOTP function
+function generateOTP() {
+  const digits = '0123456789';
+  let otp = '';
+  for (let i = 0; i < 6; i++) {
+    otp += digits[Math.floor(Math.random() * 10)];
+  }
+  return otp;
+}
+
 // Route for handling the login form submission
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
@@ -68,23 +78,49 @@ app.post('/login', (req, res) => {
       res.status(500).send('Error checking credentials');
     } else {
       if (results.length > 0) {
-        // Credentials are correct
-        const user = results[0];
-        
-        // Store user information in the session
         req.session.loggedInUser = {
-          id: user.id,
-          username: user.username,
-          role: user.role
+          id: results[0].id,
+          username: results[0].username,
+          role: results[0].role
           // Add other user properties as needed
         };
-        if (user.role === 'admin') {
-          res.redirect('/admin'); 
 
-        }else if (user.role === 'support') {
-          res.redirect('/clients'); // Redirect to the registration page for support users
+        if (req.session.loggedInUser.role === 'admin') {
+          // Generate OTP and send it to the user's email
+          const otp = generateOTP(); // Implement your OTP generation logic here
+        
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: 'festevent123@gmail.com',
+              pass: 'pxkvjhmrgkfwlphc'
+            }
+          });
+        
+          const mailOptions = {
+            from: 'festevent123@gmail.com',
+            to: 'aarjookhand@gmail.com', // Assuming you have an 'email' column in your database
+            subject: 'Login OTP',
+            text: `Your OTP: ${otp}`
+          };
+        
+          transporter.sendMail(mailOptions, (emailErr, info) => {
+            if (emailErr) {
+              console.error('Error sending OTP:', emailErr);
+              res.status(500).send('Error sending OTP');
+            } else {
+              // Store OTP in the session
+              req.session.otp = otp;
+              res.redirect('/otp'); // Redirect to OTP verification page
+            }
+          });
         } else {
-          res.redirect('/home'); // Redirect to the home page for other users
+          // For non-admin users, directly proceed to their respective pages
+          if (req.session.loggedInUser.role === 'support') {
+            res.redirect('/clients');
+          } else {
+            res.redirect('/home');
+          }
         }
       } else {
         // Invalid credentials
@@ -94,6 +130,30 @@ app.post('/login', (req, res) => {
   });
 });
 
+
+
+// Route for serving the OTP verification page
+app.get('/otp', (req, res) => {
+  res.sendFile(path.join(__dirname, 'pages', 'otp.html'));
+});
+
+// Route for handling OTP verification
+app.post('/verify-otp', (req, res) => {
+  const { otp } = req.body;
+  if (otp === req.session.otp) {
+    // OTP is correct, proceed with login
+    if (req.session.loggedInUser.role === 'admin') {
+      res.redirect('/admin');
+    } else if (req.session.loggedInUser.role === 'support') {
+      res.redirect('/clients');
+    } else {
+      res.redirect('/home');
+    }
+  } else {
+    // Invalid OTP
+    res.send('Invalid OTP.');
+  }
+});
 
 
 // Middleware to check if the user is logged in
@@ -124,8 +184,6 @@ app.get('/home', checkAuth, (req, res) => {
     res.send('Invalid user role.');
   }
 });
-
-
 
 
 app.get('/admin', (req, res) => {
@@ -188,34 +246,31 @@ app.get('/uploadImages/:supplyId', (req, res) => { // Fix the parameter name her
 });
 
 
-
-
-
-app.post('/uploadImages/:supplyId', upload.single('image'), (req, res) => {
+app.post('/uploadImages/:supplyId', upload.array('image', 10), (req, res) => {
   const supplyId = req.params.supplyId; // Retrieve supplyId from request parameter
-  // Retrieve the image buffer from the req.file object
-  const imageBuffer = req.file.buffer;
+  const imageBuffers = req.files.map(file => file.buffer); // Retrieve an array of image buffers
 
-  console.log('supplyId:', supplyId); 
+  console.log('supplyId:', supplyId);
+  console.log('Number of images:', imageBuffers.length);
 
   // Perform any necessary image processing or validation here
 
-  // Proceed with the database insertion
-  const query = 'INSERT INTO supply_images (supply_id, image_data) VALUES (?, ?)';
-  const values = [supplyId, imageBuffer];
+  // Proceed with the database insertion for each image
+  const query = 'INSERT INTO supply_images (supply_id, image_data) VALUES ?';
+  const values = imageBuffers.map(imageBuffer => [supplyId, imageBuffer]);
 
-  connection.query(query, values, (err, result) => {
+  
+
+  connection.query(query, [values], (err, result) => {
     if (err) {
-      console.error('Error adding image:', err);
-      res.status(500).send('Error adding image');
+      console.error('Error adding images:', err);
+      res.status(500).send('Error adding images');
     } else {
-      console.log('Image uploaded');
+      console.log('Images uploaded');
       res.redirect('/admin'); // Redirect back to the admin page after successful image upload
     }
   });
 });
-
-
 
 
 app.get('/images/:supplyId', (req, res) => {
@@ -276,8 +331,6 @@ app.get('/edit/:id', (req, res) => {
     }
   });
 });
-
-
 
 
 // Route for handling the delete request
@@ -679,6 +732,232 @@ app.get('/viewusedsupplies/:eventId', (req, res) => {
     }
   });
 });
+
+
+app.get('/previewbill/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
+
+  // Query the database to fetch event information
+  const eventQuery = 'SELECT * FROM events WHERE id = ?';
+  connection.query(eventQuery, [eventId], (eventErr, eventResult) => {
+    if (eventErr) {
+      console.error('Error fetching event:', eventErr);
+      res.status(500).send('Error fetching event');
+    } else {
+      const event = eventResult[0];
+
+      // Query the database to fetch client information based on client ID
+      const clientQuery = 'SELECT * FROM clients WHERE id = ?';
+      connection.query(clientQuery, [event.client_id], (clientErr, clientResult) => {
+        if (clientErr) {
+          console.error('Error fetching client:', clientErr);
+          res.status(500).send('Error fetching client');
+        } else {
+          const client = clientResult[0];
+
+          // Query the database to fetch supplies used in the event
+          const suppliesQuery = `
+            SELECT s.*, es.quantity AS quantity_used, 
+            (s.rate * es.quantity) AS total_rate,
+            (s.rate * es.quantity) + (s.rate * es.quantity * 0.05) AS total_price
+            FROM event_supplies AS es
+            INNER JOIN supply AS s ON es.supply_id = s.id
+            WHERE es.event_id = ?`;
+
+          connection.query(suppliesQuery, [eventId], (suppliesErr, suppliesResult) => {
+            if (suppliesErr) {
+              console.error('Error fetching supplies:', suppliesErr);
+              res.status(500).send('Error fetching supplies');
+            } else {
+              const supplies = suppliesResult;
+
+              // Calculate the total amount for the preview
+              const totalAmount = supplies.reduce((total, supply) => total + supply.total_price, 0);
+
+              // Render the billpreview.ejs template with the necessary data
+              res.render('billpreview', { client, event, supplies, totalAmount });
+            }
+          });
+        }
+      });
+    }
+  });
+});
+
+
+
+
+
+// // Route for generating PDF from HTML content
+// app.post('/generate-pdf', async (req, res) => {
+//   const { pdfContent, discount } = req.body;
+
+//   try {
+//     const browser = await puppeteer.launch();
+//     const page = await browser.newPage();
+
+//     // Set the HTML content for the page
+//     await page.setContent(pdfContent);
+
+//     // Generate PDF with options
+//     const pdf = await page.pdf({
+//       format: 'A4',
+//       margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+//     });
+
+//     await browser.close();
+
+//     // Send the generated PDF as a response
+//     res.setHeader('Content-Type', 'application/pdf');
+//     res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
+//     res.send(pdf);
+//   } catch (error) {
+//     console.error('Error generating PDF:', error);
+//     res.status(500).send('Error generating PDF');
+//   }
+// });
+
+
+
+app.post('/generate-pdf', async (req, res) => {
+  const { pdfContent, discount, eventId } = req.body;
+
+  try {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    // Set the HTML content for the page
+    await page.setContent(pdfContent);
+
+    // Generate PDF with options
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+    });
+
+    await browser.close();
+
+    // Log PDF Content
+    console.log('PDF Content:', pdf);
+
+    // Update the billing column in the events table with the generated PDF
+    const sql = 'UPDATE events SET billing = ? WHERE id = ?';
+    const values = [pdf, eventId];
+
+    connection.query(sql, values, (error, results) => {
+      if (error) {
+        console.error('Error updating billing column:', error);
+        res.status(500).send('Error updating billing');
+        return; // Add this return statement
+      }
+      
+      console.log('PDF content successfully saved to the database');
+      res.status(200).send('PDF generated and stored in the database');
+    });
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).send('Error generating PDF');
+  }
+});
+
+
+
+// Define route to display supply images
+app.get('/displaySupplyImages/:supplyId', (req, res) => {
+  const supplyId = req.params.supplyId;
+
+  // Query the supply_images table to retrieve images associated with the supply
+  const query = 'SELECT * FROM supply_images WHERE supply_id = ?';
+  connection.query(query, [supplyId], (err, rows) => {
+    if (err) {
+      console.error('Error querying images:', err);
+      res.status(500).send('Error querying images');
+    } else {
+      const images = rows; // Assign the retrieved rows to the 'images' variable
+      
+      console.log('Fetched images:', images);
+      
+      res.render('displaySupplyImages', { images, supplyId }); // Renders the EJS template
+    }
+  });
+});
+
+
+// Define route to display the editImages EJS template
+app.get('/editImages/:supplyId', (req, res) => {
+  const supplyId = req.params.supplyId;
+
+  // Query the supply_images table to retrieve images associated with the supply
+  const query = 'SELECT * FROM supply_images WHERE supply_id = ?';
+  connection.query(query, [supplyId], (err, rows) => {
+    if (err) {
+      console.error('Error querying images:', err);
+      res.status(500).send('Error querying images');
+    } else {
+      const images = rows; // Assign the retrieved rows to the 'images' variable
+
+      console.log('Fetched images:', images);
+
+      // Render the editImages EJS template and pass the 'images' and 'supplyId' variables to it
+      res.render('editImages', { images, supplyId });
+    }
+  });
+});
+
+
+app.post('/editImages/:supplyId', upload.array('newImages'), (req, res) => {
+  const supplyId = req.params.supplyId;
+  const newImages = req.files;
+
+  // Insert new images into the database
+  const insertQuery = 'INSERT INTO supply_images (supply_id, image_data) VALUES (?, ?)';
+  const insertValues = newImages.map(image => [supplyId, image.buffer]);
+
+  connection.query(insertQuery, [insertValues], (insertErr, insertResult) => {
+    if (insertErr) {
+      console.error('Error inserting images:', insertErr);
+      res.status(500).send('Error inserting images');
+    } else {
+      console.log('Images added');
+
+      // Delete images that were marked for deletion
+      const deletedImageIds = req.body.deletedImages || [];
+      const deleteQuery = 'DELETE FROM supply_images WHERE id IN (?)';
+      
+      connection.query(deleteQuery, [deletedImageIds], (deleteErr, deleteResult) => {
+        if (deleteErr) {
+          console.error('Error deleting images:', deleteErr);
+          res.status(500).send('Error deleting images');
+        } else {
+          console.log('Images deleted');
+          res.redirect(`/editImages/${supplyId}`); // Redirect to the edit page
+        }
+      });
+    }
+  });
+});
+
+app.get('/viewbill/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
+
+  // Query the events table to retrieve the billing information for the specified event
+  const query = 'SELECT billing FROM events WHERE id = ?';
+  connection.query(query, [eventId], (err, rows) => {
+    if (err) {
+      console.error('Error querying billing:', err);
+      res.status(500).send('Error querying billing');
+    } else {
+      const billingInfo = rows[0].billing; // Retrieve the billing information
+
+      // Render the viewbill.ejs template with the billing information
+      res.render('viewbill', { billingInfo });
+    }
+  });
+});
+
+
+
+
 
 // Clear Node.js module cache
 Object.keys(require.cache).forEach((key) => {
