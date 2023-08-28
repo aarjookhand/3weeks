@@ -114,13 +114,38 @@ app.post('/login', (req, res) => {
               res.redirect('/otp'); // Redirect to OTP verification page
             }
           });
+        } else if (req.session.loggedInUser.role === 'support') {
+          // Generate OTP and send it to the user's email (username is an email)
+          const otp = generateOTP();
+        
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: 'festevent123@gmail.com',
+              pass: 'pxkvjhmrgkfwlphc'
+            }
+          });
+        
+          const mailOptions = {
+            from: 'festevent123@gmail.com',
+            to: username, // Support user's email (username is an email)
+            subject: 'Login OTP',
+            text: `Your OTP: ${otp}`
+          };
+        
+          transporter.sendMail(mailOptions, (emailErr, info) => {
+            if (emailErr) {
+              console.error('Error sending OTP:', emailErr);
+              res.status(500).send('Error sending OTP');
+            } else {
+              // Store OTP in the session
+              req.session.otp = otp;
+              res.redirect('/otp'); // Redirect to OTP verification page
+            }
+          });
         } else {
-          // For non-admin users, directly proceed to their respective pages
-          if (req.session.loggedInUser.role === 'support') {
-            res.redirect('/clients');
-          } else {
-            res.redirect('/home');
-          }
+          // Non-admin, non-support users
+          res.redirect('/home');
         }
       } else {
         // Invalid credentials
@@ -131,11 +156,12 @@ app.post('/login', (req, res) => {
 });
 
 
-
 // Route for serving the OTP verification page
 app.get('/otp', (req, res) => {
   res.sendFile(path.join(__dirname, 'pages', 'otp.html'));
 });
+
+
 
 // Route for handling OTP verification
 app.post('/verify-otp', (req, res) => {
@@ -273,6 +299,11 @@ app.post('/uploadImages/:supplyId', upload.array('image', 10), (req, res) => {
 });
 
 
+
+
+
+
+
 app.get('/images/:supplyId', (req, res) => {
   const supplyId = req.params.supplyId;
 
@@ -295,6 +326,52 @@ app.get('/images/:supplyId', (req, res) => {
 
 
 
+
+
+// Route for updating images (adding new images)
+app.post('/updateImage/:supplyId', upload.array('images', 10), (req, res) => {
+  const supplyId = req.params.supplyId;
+  const imageBuffers = req.files.map(file => file.buffer);
+
+  console.log('supplyId:', supplyId);
+  console.log('Number of new images:', imageBuffers.length);
+
+  // Perform any necessary image processing or validation here
+
+  // Proceed with the database insertion for each new image
+  const insertQuery = 'INSERT INTO supply_images (supply_id, image_data) VALUES ?';
+  const insertValues = imageBuffers.map(imageBuffer => [supplyId, imageBuffer]);
+
+  connection.query(insertQuery, [insertValues], (err, insertResult) => {
+      if (err) {
+          console.error('Error adding new images:', err);
+          res.status(500).send('Error adding new images');
+      } else {
+          console.log('New images added');
+          res.redirect(`/admin`); // Redirect back to the edit image page after adding new images
+      }
+  });
+});
+
+// Route for deleting a specific image
+app.post('/updateImage/:imageId/delete', (req, res) => {
+  const imageId = req.params.imageId;
+
+  // Delete the image from the database based on the imageId
+  const deleteQuery = 'DELETE FROM supply_images WHERE id = ?';
+  connection.query(deleteQuery, [imageId], (err, deleteResult) => {
+      if (err) {
+          console.error('Error deleting image:', err);
+          res.status(500).send('Error deleting image');
+      } else {
+          console.log('Image deleted');
+          res.redirect(`/admin`); // Redirect back to the edit image page after deleting the image
+      }
+  });
+});
+
+
+
 // Route for handling the edit form submission
 app.post('/edit/:id',  (req, res) => {
   const supplyId = req.params.id;
@@ -310,7 +387,7 @@ app.post('/edit/:id',  (req, res) => {
       res.status(500).send('Error updating supply');
     } else {
        // Redirect to the image upload form for the newly added supply
-       res.redirect(`/uploadImages/${supplyId}`);
+       res.redirect(`/admin`);
     }
   });
 });
@@ -788,39 +865,9 @@ app.get('/previewbill/:eventId', (req, res) => {
 
 
 
-// // Route for generating PDF from HTML content
-// app.post('/generate-pdf', async (req, res) => {
-//   const { pdfContent, discount } = req.body;
-
-//   try {
-//     const browser = await puppeteer.launch();
-//     const page = await browser.newPage();
-
-//     // Set the HTML content for the page
-//     await page.setContent(pdfContent);
-
-//     // Generate PDF with options
-//     const pdf = await page.pdf({
-//       format: 'A4',
-//       margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-//     });
-
-//     await browser.close();
-
-//     // Send the generated PDF as a response
-//     res.setHeader('Content-Type', 'application/pdf');
-//     res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
-//     res.send(pdf);
-//   } catch (error) {
-//     console.error('Error generating PDF:', error);
-//     res.status(500).send('Error generating PDF');
-//   }
-// });
-
-
-
-app.post('/generate-pdf', async (req, res) => {
-  const { pdfContent, discount, eventId } = req.body;
+// Route for generating PDF from HTML content
+app.post('/generate-pdf/:eventId', async (req, res) => {
+  const { pdfContent, discount } = req.body;
 
   try {
     const browser = await puppeteer.launch();
@@ -837,28 +884,62 @@ app.post('/generate-pdf', async (req, res) => {
 
     await browser.close();
 
-    // Log PDF Content
-    console.log('PDF Content:', pdf);
-
-    // Update the billing column in the events table with the generated PDF
-    const sql = 'UPDATE events SET billing = ? WHERE id = ?';
-    const values = [pdf, eventId];
-
-    connection.query(sql, values, (error, results) => {
-      if (error) {
-        console.error('Error updating billing column:', error);
-        res.status(500).send('Error updating billing');
-        return; // Add this return statement
-      }
-      
-      console.log('PDF content successfully saved to the database');
-      res.status(200).send('PDF generated and stored in the database');
-    });
+    // Send the generated PDF as a response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
+    res.send(pdf);
   } catch (error) {
     console.error('Error generating PDF:', error);
     res.status(500).send('Error generating PDF');
   }
 });
+
+
+
+
+// const pdf = require('html-pdf'); // Example PDF generation library
+// const fs = require('fs');
+// const { PDFDocument } = require('pdf-lib'); // PDF-lib for modifying PDF content
+
+// app.use(express.urlencoded({ extended: true }));
+// app.use(express.json());
+
+// // Define a route for generating and saving PDFs
+// app.post('/generate-pdf/:eventid', async (req, res) => {
+//     const eventID = req.params.eventid;
+//     const pdfContent = req.body.pdfContent;
+//     const discount = req.body.discount;
+//     const totalAmount = req.body.totalAmount;
+
+//     // Generate PDF from HTML content using PDF-lib
+//     const pdfDoc = await PDFDocument.create();
+//     const page = pdfDoc.addPage();
+//     const font = await pdfDoc.embedFont(PDFDocument.Font.Helvetica);
+//     const { width, height } = page.getSize();
+
+//     const fontSize = 12;
+//     const textX = 50;
+//     let textY = height - 50;
+
+//     const lines = pdfContent.split('\n');
+//     for (const line of lines) {
+//         page.drawText(line, { x: textX, y: textY, font, size: fontSize });
+//         textY -= fontSize + 5;
+//     }
+
+//     // Add discount and total amount information
+//     page.drawText(`Discount: ${discount.toFixed(2)}`, { x: textX, y: textY, font, size: fontSize });
+//     textY -= fontSize + 5;
+//     page.drawText(`Net Amount: ${(totalAmount - discount).toFixed(2)}`, { x: textX, y: textY, font, size: fontSize });
+
+//     // Save the PDF to a file
+//     const pdfBytes = await pdfDoc.save();
+//     fs.writeFileSync(`./pdfs/event_${eventID}_invoice.pdf`, pdfBytes);
+
+//     return res.send('PDF generated and saved successfully');
+// });
+
+
 
 
 
