@@ -934,110 +934,6 @@ app.get('/previewbill/:eventId', (req, res) => {
 });
 
 
-app.post('/save-discount', async (req, res) => {
-  try {
-    const { eventId, discount } = req.body;
-
-    // Update the discount for the event in the events table
-    connection.query(
-      'UPDATE events SET discount = ? WHERE id = ?',
-      [discount, eventId],
-      (error, results) => {
-        if (error) {
-          console.error('Error updating discount:', error);
-          res.status(500).send('Error updating discount');
-        } else {
-          console.log('Discount saved to the database');
-          res.status(200).send('Discount saved successfully');
-        }
-      }
-    );
-  } catch (error) {
-    console.error('Error saving discount:', error);
-    res.status(500).send('Error saving discount');
-  }
-});
-
-
-
-
-
-// // Route for generating PDF from HTML content
-// app.post('/generate-pdf/:eventId', async (req, res) => {
-//   const { pdfContent, discount } = req.body;
-
-//   try {
-//     const browser = await puppeteer.launch();
-//     const page = await browser.newPage();
-
-//     // Set the HTML content for the page
-//     await page.setContent(pdfContent);
-
-//     // Generate PDF with options
-//     const pdf = await page.pdf({
-//       format: 'A4',
-//       margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-//     });
-
-//     await browser.close();
-
-//     // Send the generated PDF as a response
-//     res.setHeader('Content-Type', 'application/pdf');
-//     res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
-//     res.send(pdf);
-//   } catch (error) {
-//     console.error('Error generating PDF:', error);
-//     res.status(500).send('Error generating PDF');
-//   }
-// });
-
-
-
-
-// const pdf = require('html-pdf'); // Example PDF generation library
-// const fs = require('fs');
-// const { PDFDocument } = require('pdf-lib'); // PDF-lib for modifying PDF content
-
-// app.use(express.urlencoded({ extended: true }));
-// app.use(express.json());
-
-// // Define a route for generating and saving PDFs
-// app.post('/generate-pdf/:eventid', async (req, res) => {
-//     const eventID = req.params.eventid;
-//     const pdfContent = req.body.pdfContent;
-//     const discount = req.body.discount;
-//     const totalAmount = req.body.totalAmount;
-
-//     // Generate PDF from HTML content using PDF-lib
-//     const pdfDoc = await PDFDocument.create();
-//     const page = pdfDoc.addPage();
-//     const font = await pdfDoc.embedFont(PDFDocument.Font.Helvetica);
-//     const { width, height } = page.getSize();
-
-//     const fontSize = 12;
-//     const textX = 50;
-//     let textY = height - 50;
-
-//     const lines = pdfContent.split('\n');
-//     for (const line of lines) {
-//         page.drawText(line, { x: textX, y: textY, font, size: fontSize });
-//         textY -= fontSize + 5;
-//     }
-
-//     // Add discount and total amount information
-//     page.drawText(`Discount: ${discount.toFixed(2)}`, { x: textX, y: textY, font, size: fontSize });
-//     textY -= fontSize + 5;
-//     page.drawText(`Net Amount: ${(totalAmount - discount).toFixed(2)}`, { x: textX, y: textY, font, size: fontSize });
-
-//     // Save the PDF to a file
-//     const pdfBytes = await pdfDoc.save();
-//     fs.writeFileSync(`./pdfs/event_${eventID}_invoice.pdf`, pdfBytes);
-
-//     return res.send('PDF generated and saved successfully');
-// });
-
-
-
 
 
 // Define route to display supply images
@@ -1115,20 +1011,182 @@ app.post('/editImages/:supplyId', upload.array('newImages'), (req, res) => {
   });
 });
 
+
+
+
+function calculateTotalAmount(supplies) {
+  let total = 0;
+  supplies.forEach(supply => {
+    total += supply.total_price; // Assuming you have a property named total_price in your supply object
+  });
+  return total;
+}
+
+function formatDate(dateString) {
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(dateString).toLocaleDateString(undefined, options);
+}
+
+app.get('/bill/:eventId', (req, res) => {
+  const eventId = req.params.eventId;
+  const discountAmount = parseFloat(req.query.discountAmount || 0);
+  
+
+  // Fetch event details from the database based on eventId
+  const getEventQuery = `
+    SELECT * FROM events WHERE id = ?
+  `;
+
+  // Fetch client data associated with the event
+  const getClientQuery = `
+    SELECT c.* FROM clients AS c
+    INNER JOIN events AS e ON c.id = e.client_id
+    WHERE e.id = ?
+  `;
+
+// Fetch supplies used for the specified event
+const getSuppliesUsedQuery = `
+  SELECT s.*, es.quantity AS quantity_used, 
+         (s.rate * es.quantity) AS total_rate,
+         (s.rate * es.quantity * 1.05) AS total_price  -- Make sure your calculation is correct
+  FROM supply AS s
+  INNER JOIN event_supplies AS es ON s.id = es.supply_id
+  WHERE es.event_id = ?
+`;
+
+
+  // Execute the queries to fetch data
+  connection.query(getEventQuery, [eventId], (err, event) => {
+    if (err) {
+      console.error('Error fetching event details:', err);
+      res.status(500).send('Error fetching event details');
+    } else {
+      connection.query(getClientQuery, [eventId], (err, client) => {
+        if (err) {
+          console.error('Error fetching client data:', err);
+          res.status(500).send('Error fetching client data');
+        } else {
+          connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
+            if (err) {
+              console.error('Error fetching supplies used:', err);
+              res.status(500).send('Error fetching supplies used');
+            } else {
+              // Render the bill template with the event, client, and supplies data
+              res.render('bill', {
+                event: event[0], // Assuming only one event is fetched
+                client: client[0], // Assuming only one client is fetched
+                supplies: suppliesUsed,
+                calculateTotalAmount: calculateTotalAmount,
+                discount: discountAmount, 
+                formatDate: formatDate,
+              });
+            }
+          });
+        }
+      });
+    }
+  });
+});
+
+app.post('/saveDiscount', (req, res) => {
+  const eventId = req.body.eventId;
+  const discountAmount = req.body.discountAmount;
+
+  // Update the database with the discount amount for the specific event
+  const updateDiscountQuery = `
+  UPDATE events SET discount = ? WHERE id = ?
+`;
+
+connection.query(updateDiscountQuery, [discountAmount, eventId], (err, result) => {
+  if (err) {
+    console.error('Error updating discount amount:', err);
+    res.status(500).send('Error updating discount amount');
+  } else {
+    res.status(200).send('Discount amount saved successfully');
+  }
+  });
+});
+
+// Add a route to handle saving the bill printing status
+app.post('/saveBillPrinted', (req, res) => {
+  const eventId = req.body.eventId;
+
+  // Update the database to set the 'billPrinted' status to true for the specified event
+  const updateQuery = `
+    UPDATE events
+    SET billPrinted = 1 -- Set to 1 to indicate the bill has been printed
+    WHERE id = ?
+  `;
+
+  connection.query(updateQuery, [eventId], (err, result) => {
+    if (err) {
+      console.error('Error updating billPrinted status:', err);
+      res.status(500).send('Error updating billPrinted status');
+    } else {
+      res.status(200).send('Bill printing status updated');
+    }
+  });
+});
+
+
+
+// Define a route to view the bill for a specific event
 app.get('/viewbill/:eventId', (req, res) => {
   const eventId = req.params.eventId;
+  const discountAmount = parseFloat(req.query.discountAmount || 0);
 
-  // Query the events table to retrieve the billing information for the specified event
-  const query = 'SELECT billing FROM events WHERE id = ?';
-  connection.query(query, [eventId], (err, rows) => {
+  // Fetch event details from the database based on eventId
+  const getEventQuery = `
+    SELECT * FROM events WHERE id = ?
+  `;
+
+  // Fetch client data associated with the event
+  const getClientQuery = `
+    SELECT c.* FROM clients AS c
+    INNER JOIN events AS e ON c.id = e.client_id
+    WHERE e.id = ?
+  `;
+
+// Fetch supplies used for the specified event
+const getSuppliesUsedQuery = `
+  SELECT s.*, es.quantity AS quantity_used, 
+         (s.rate * es.quantity) AS total_rate,
+         (s.rate * es.quantity * 1.05) AS total_price  -- Make sure your calculation is correct
+  FROM supply AS s
+  INNER JOIN event_supplies AS es ON s.id = es.supply_id
+  WHERE es.event_id = ?
+`;
+
+
+  // Execute the queries to fetch data
+  connection.query(getEventQuery, [eventId], (err, event) => {
     if (err) {
-      console.error('Error querying billing:', err);
-      res.status(500).send('Error querying billing');
+      console.error('Error fetching event details:', err);
+      res.status(500).send('Error fetching event details');
     } else {
-      const billingInfo = rows[0].billing; // Retrieve the billing information
-
-      // Render the viewbill.ejs template with the billing information
-      res.render('viewbill', { billingInfo });
+      connection.query(getClientQuery, [eventId], (err, client) => {
+        if (err) {
+          console.error('Error fetching client data:', err);
+          res.status(500).send('Error fetching client data');
+        } else {
+          connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
+            if (err) {
+              console.error('Error fetching supplies used:', err);
+              res.status(500).send('Error fetching supplies used');
+            } else {
+              // Render the bill template with the event, client, and supplies data
+              res.render('bill', {
+                event: event[0], // Assuming only one event is fetched
+                client: client[0], // Assuming only one client is fetched
+                supplies: suppliesUsed,
+                calculateTotalAmount: calculateTotalAmount,
+                discount: discountAmount, 
+                formatDate: formatDate,
+              });
+            }
+          });
+        }
+      });
     }
   });
 });
