@@ -66,6 +66,8 @@ function generateOTP() {
   return otp;
 }
 
+
+
 // Route for handling the login form submission
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
@@ -581,11 +583,11 @@ app.post('/client/update/:id', (req, res) => {
 // Route for handling the add event form submission
 app.post('/client/history/:clientId/add-event', (req, res) => {
   const clientId = req.params.clientId;
-  const { eventDate, startTime, endTime, description } = req.body;
+  const { eventStartDate, startTime, eventEndDate, endTime, description } = req.body;
 
   // Insert the event into the events table
-  const query = 'INSERT INTO events (client_id, event_date, event_start_time, event_end_time, event_description) VALUES (?, ?, ?, ?, ?)';
-  const values = [clientId, eventDate, startTime, endTime, description];
+const query = 'INSERT INTO events (client_id, event_start_date, event_start_time, event_end_date, event_end_time, event_description) VALUES (?, ?, ?, ?, ?,?)';
+  const values = [clientId, eventStartDate, startTime, eventEndDate, endTime, description];
 
   connection.query(query, values, (err, result) => {
     if (err) {
@@ -598,20 +600,60 @@ app.post('/client/history/:clientId/add-event', (req, res) => {
 });
 
 
-// Function to get the event status based on event data
 function getEventStatus(event) {
   const currentDate = new Date();
-  const eventDate = new Date(event.event_date);
+  const eventStartDate = new Date(event.event_start_date);
+  const eventEndDate = new Date(event.event_end_date);
 
-  if (currentDate.getDate() === eventDate.getDate() &&
-      currentDate.getMonth() === eventDate.getMonth() &&
-      currentDate.getFullYear() === eventDate.getFullYear()) {
-    return "Ongoing";
-  } else if (currentDate > eventDate) {
+  const currentDateFull = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  const eventStartDateFull = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate());
+  const eventEndDateFull = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+
+  if (currentDateFull > eventEndDateFull) {
     return "Completed";
+  } else if (currentDateFull >= eventStartDateFull && currentDateFull <= eventEndDateFull) {
+    return "Ongoing";
   } else {
     return "Upcoming";
   }
+}
+
+
+function formatDateAndTime(startDateString, startTimeString, endDateString, endTimeString) {
+  const startDate = new Date(`${startDateString}T${startTimeString}`);
+  const endDate = new Date(`${endDateString}T${endTimeString}`);
+
+  const formattedStartDateTime = startDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric"
+  });
+
+  const formattedEndDateTime = endDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric"
+  });
+
+  return `${formattedStartDateTime} - ${formattedEndDateTime}`;
+
+
+  
+}
+
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'short', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
 }
 
 
@@ -626,12 +668,15 @@ app.get('/client/history/:clientId/events', (req, res) => {
       console.error('Error retrieving events:', err);
       res.status(500).send('Error retrieving events');
     } else {
-      // Render the event history template with the events data
-      res.render('eventhistory', { events: results, getEventStatus }); // Pass the function to the template
+      // Render the event history template with the events data and functions
+      res.render('eventhistory', {
+        events: results,
+        getEventStatus,
+        formatDateAndTime , formatDate// Pass the formatDateAndTime function to the template
+      });
     }
   });
 });
-
 
 // Route to render the addinsupplies.ejs page with supplies for a specific event and search term
 app.get('/addinsupplies/:eventId', async (req, res) => {
@@ -649,6 +694,15 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
     `;
     const supplies = await queryDatabase(suppliesQuery);
 
+
+
+    // Fetch supply IDs for which to retrieve images
+    const supplyIds = supplies.map(supply => supply.id);
+
+    // Fetch images associated with each supply (replace 'supply_images' and 'image_data' with your actual table and column names)
+    const imagesQuery = 'SELECT supply_id, image_data FROM supply_images WHERE supply_id IN (?)';
+    const images = await queryDatabase(imagesQuery, [supplyIds]);
+
     // Fetch event data from the database based on the event ID (replace 'events' with your actual table name)
     const eventQuery = 'SELECT * FROM events WHERE id = ?';
     const event = await queryDatabase(eventQuery, [eventId]);
@@ -664,7 +718,7 @@ app.get('/addinsupplies/:eventId', async (req, res) => {
     const usedSupplies = await queryDatabase(usedSuppliesQuery, [eventId]);
 
     // Render the addinsupplies.ejs page and pass the supplies, event, and usedSupplies data to it
-    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies, searchTerm, refineSearchTerm: '' });
+    res.render('addinsupplies.ejs', { supplies, event: event[0], usedSupplies, images, searchTerm, refineSearchTerm: '' });
   } catch (err) {
     // Handle any errors that occur during the database query
     console.error('Error fetching data:', err);
@@ -744,6 +798,8 @@ function queryDatabase(query, values = []) {
   });
 }
 
+
+
 // Route to handle adding selected supplies to the event_supplies table
 app.post('/addinsupplies/:eventId/addSupplies', async (req, res) => {
   const eventId = req.params.eventId;
@@ -798,13 +854,29 @@ app.get('/viewusedsupplies/:eventId', (req, res) => {
     WHERE es.event_id = ?
   `;
 
+  // Fetch images associated with the supplies used
+  const getImagesQuery = `
+    SELECT * FROM supply_images WHERE supply_id IN (
+      SELECT supply_id FROM event_supplies WHERE event_id = ?
+    )
+  `;
+
   connection.query(getSuppliesUsedQuery, [eventId], (err, suppliesUsed) => {
     if (err) {
       console.error('Error fetching supplies used:', err);
       res.status(500).send('Error fetching supplies used');
     } else {
-      res.render('viewusedsupplies', {
-        suppliesUsed: suppliesUsed,
+      // Fetch images
+      connection.query(getImagesQuery, [eventId], (err, images) => {
+        if (err) {
+          console.error('Error fetching images:', err);
+          res.status(500).send('Error fetching images');
+        } else {
+          res.render('viewusedsupplies', {
+            suppliesUsed: suppliesUsed,
+            images: images, // Pass the images data to the template
+          });
+        }
       });
     }
   });
@@ -862,37 +934,62 @@ app.get('/previewbill/:eventId', (req, res) => {
 });
 
 
-
-
-
-// Route for generating PDF from HTML content
-app.post('/generate-pdf/:eventId', async (req, res) => {
-  const { pdfContent, discount } = req.body;
-
+app.post('/save-discount', async (req, res) => {
   try {
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+    const { eventId, discount } = req.body;
 
-    // Set the HTML content for the page
-    await page.setContent(pdfContent);
-
-    // Generate PDF with options
-    const pdf = await page.pdf({
-      format: 'A4',
-      margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
-    });
-
-    await browser.close();
-
-    // Send the generated PDF as a response
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
-    res.send(pdf);
+    // Update the discount for the event in the events table
+    connection.query(
+      'UPDATE events SET discount = ? WHERE id = ?',
+      [discount, eventId],
+      (error, results) => {
+        if (error) {
+          console.error('Error updating discount:', error);
+          res.status(500).send('Error updating discount');
+        } else {
+          console.log('Discount saved to the database');
+          res.status(200).send('Discount saved successfully');
+        }
+      }
+    );
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    res.status(500).send('Error generating PDF');
+    console.error('Error saving discount:', error);
+    res.status(500).send('Error saving discount');
   }
 });
+
+
+
+
+
+// // Route for generating PDF from HTML content
+// app.post('/generate-pdf/:eventId', async (req, res) => {
+//   const { pdfContent, discount } = req.body;
+
+//   try {
+//     const browser = await puppeteer.launch();
+//     const page = await browser.newPage();
+
+//     // Set the HTML content for the page
+//     await page.setContent(pdfContent);
+
+//     // Generate PDF with options
+//     const pdf = await page.pdf({
+//       format: 'A4',
+//       margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+//     });
+
+//     await browser.close();
+
+//     // Send the generated PDF as a response
+//     res.setHeader('Content-Type', 'application/pdf');
+//     res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
+//     res.send(pdf);
+//   } catch (error) {
+//     console.error('Error generating PDF:', error);
+//     res.status(500).send('Error generating PDF');
+//   }
+// });
 
 
 
