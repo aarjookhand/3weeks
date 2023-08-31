@@ -3,71 +3,215 @@
 <head>
   <title>Event History</title>
   <style>
+      body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: url('images/img1.jpg'); /* Replace with the actual path to your background image */
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff; /* Container background color */
+      box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1); /* Container shadow */
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
     table {
       border-collapse: collapse;
       width: 100%;
     }
 
     th, td {
-      border: 1px solid black;
-      padding: 8px;
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
     }
+
+    th {
+      background-color: #f2f2f2; /* Table header background color */
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2; /* Alternating row background color */
+    }
+
+    tr:hover {
+      background-color: #e0e0e0; /* Hover row background color */
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .action-button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: #007bff; /* Action button background color */
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .action-button:hover {
+      background-color: #0056b3; /* Hover action button background color */
+    }
+
+    .go-back-button {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .go-back-link {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #555;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .go-back-link:hover {
+      background-color: #333;
+    }
+
+    .welcome-heading {
+      text-align: center;
+      font-family: "Brush Script MT", "Brush Script Std", cursive;
+      font-size: 36px;
+      margin-top: 30px;
+      margin-bottom: 20px;
+      color: #000000b7;
+      border: 2px solid #052703;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);
+    }
+
   </style>
 </head>
 <body>
+  <div class="container">
+    <h1 class="welcome-heading">Bienvenue à Fest'Event.</h1>
   <h1>Event History</h1>
 
-  <table>
+  <!-- <table>
     <tr>
-      <th>Event Date</th>
-      <th>Start Time</th>
-      <th>End Time</th>
+      <th>Event Start</th>
+      <th>Event End</th>
       <th>Description</th>
       <th>Status</th>
-      <th>Action</th> <!-- Add a new table header for the Action button -->
+      <th>Action</th>
     </tr>
     <% events.forEach(function(event) { %>
       <tr>
-        <td><%= event.event_date %></td>
-        <td><%= event.event_start_time %></td>
-        <td><%= event.event_end_time %></td>
+        <td><%= formatDateAndTime(event.event_start_date, event.event_start_time) %></td>
+        <td><%= formatDateAndTime(event.event_end_date, event.event_end_time) %></td>
         <td><%= event.event_description %></td>
         <td><%= getEventStatus(event) %></td>
-        <% if (getEventStatus(event) ) { %>
-          <!-- Render the "View" button if the event status is Completed -->
-          <td><a href="/viewusedsupplies/<%= event.id %>">View Supplies</a><br>
-        <% }if (getEventStatus(event) !== "Completed") { %>
-          <!-- Render the "Add in supplies" button if the event status is not Completed -->
-          <a href="/addinsupplies/<%= event.id %>">Add Supplies</a>
-             </td>
+        <td>
+          <% if (getEventStatus(event)) { %>
+            <a href="/viewusedsupplies/<%= event.id %>">View Supplies</a><br>
+            <a href="/viewbill/<%= event.id %>">View Bill</a>
+          <% } if (getEventStatus(event) !== "Completed") { %>
+            <a href="/addinsupplies/<%= event.id %>">Add Supplies</a><br>
+            <a href="/previewbill/<%= event.id %>">Preview Bill</a>
+          <% } %>
+        </td>
+      </tr>
+    <% }); %>
+  </table> -->
 
-         
-          
-        <% } %>
+
+  <table>
+    <tr>
+      <th>Event Start</th>
+      <th>Event End</th>
+      <th>Description</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+    <% events.forEach(function(event) { %>
+      <tr>
+        <td>
+          <%= formatDate(event.event_start_date) %> <%= event.event_start_time %>
+        </td>
+        <td>
+          <%= formatDate(event.event_end_date) %> <%= event.event_end_time %>
+        </td>
+        <td><%= event.event_description %></td>
+        <td><%= getEventStatus(event) %></td>
+        <td>
+          <% if (getEventStatus(event)) { %>
+            <a href="/viewusedsupplies/<%= event.id %>">View Supplies</a><br>
+            <a href="/viewbill/<%= event.id %>">View Bill</a>
+          <% } if (getEventStatus(event) !== "Completed" && !event.billPrinted) { %>            
+            <a href="/addinsupplies/<%= event.id %>">Add Supplies</a><br>
+            <a href="/previewbill/<%= event.id %>">Preview Bill</a>
+          <% } %>
+        </td>
       </tr>
     <% }); %>
   </table>
+  
+  
+  <div class="go-back-button">
+    <button class="go-back-link" onclick="goToClientHistory()">Go Back</button>
+  </div>
+  
+  </div>
+  </body>
 
   <script>
- function getEventStatus(event) {
-  const currentDate = new Date();
-  const eventDate = new Date(event.event_date);
 
-  if (currentDate.getDate() === eventDate.getDate() &&
-      currentDate.getMonth() === eventDate.getMonth() &&
-      currentDate.getFullYear() === eventDate.getFullYear()) {
-    return "Ongoing";
-  } else if (currentDate > eventDate) {
-    return "Completed";
-  } else {
-    return "Upcoming";
-  }
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const options = { year: 'numeric', month: 'short', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
 }
- 
-     function performAction(eventId) {
+
+
+
+
+
+    function goToClientHistory() {
+            window.history.back(); // This function goes back to the previous page in the browser history
+        }
+
+    function getEventStatus(event) {
+      const currentDate = new Date();
+      const eventStartDate = new Date(event.event_start_date);
+      const eventEndDate = new Date(event.event_end_date);
+
+      const currentDateFull = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+      const eventStartDateFull = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate());
+      const eventEndDateFull = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate());
+
+      if (currentDateFull > eventEndDateFull) {
+        return "Completed";
+      } else if (currentDateFull >= eventStartDateFull && currentDateFull <= eventEndDateFull) {
+        return "Ongoing";
+      } else {
+        return "Upcoming";
+      }
+    }
+
+
+
+
+    function performAction(eventId) {
     // Redirect to the viewsupplies page with the eventId as a query parameter
     window.location.href = `/viewsupplies?eventid=${eventId}`;
-  }
+    }
   </script>
 </body>
 </html>
